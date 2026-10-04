@@ -1,0 +1,13 @@
+{
+  "name": "briella-turns-6",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Interactive Pokémon-themed birthday invitation for Briella's 6th birthday",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}

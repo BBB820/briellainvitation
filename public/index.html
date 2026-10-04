@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1f54" />
+  <title>Briella Turns 6!</title>
+  <meta name="description" content="You're invited to Briella's Pokémon birthday party! October 28, 2026 at 2:00 PM, Timezone Greenhills." />
+
+  <!-- Link previews (Messenger, Viber, WhatsApp, iMessage) -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Briella Turns 6! — You're invited" />
+  <meta property="og:description" content="Tap the Poké Ball to open your invitation. Oct 28, 2026 · 2 PM · Timezone, Greenhills" />
+  <meta property="og:url" content="{{ORIGIN}}/" />
+  <meta property="og:image" content="{{ORIGIN}}/assets/og.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <link rel="icon" href="/assets/apple-touch-icon.png" />
+  <link rel="preload" href="/assets/fonts/luckiest-guy-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="sky" aria-hidden="true">
+    <div class="rays"></div>
+    <div class="stars"></div>
+    <div class="stars stars--far"></div>
+    <svg class="sky-ball" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="46" />
+      <line x1="4" y1="50" x2="36" y2="50" />
+      <line x1="64" y1="50" x2="96" y2="50" />
+      <circle cx="50" cy="50" r="14" />
+    </svg>
+  </div>
+
+  <!-- 1. Intro: the only thing guests see until they tap the ball -->
+  <main id="intro" class="intro">
+    <p class="intro-kicker">A special invitation has arrived</p>
+    <h1 class="intro-title">Ready, Trainer?</h1>
+
+    <button id="ball" class="ball" type="button" aria-label="Open the Poké Ball to reveal your invitation">
+      <span class="ball-glow" aria-hidden="true"></span>
+      <span class="ball-light" aria-hidden="true"></span>
+      <span class="ball-half ball-top" aria-hidden="true"><span class="ball-shine"></span></span>
+      <span class="ball-half ball-bottom" aria-hidden="true"></span>
+      <span class="ball-band" aria-hidden="true"></span>
+      <span class="ball-button" aria-hidden="true"></span>
+    </button>
+
+    <p class="intro-hint" aria-hidden="true">Tap the Poké Ball</p>
+  </main>
+
+  <div id="flash" class="flash" aria-hidden="true"></div>
+
+  <!-- 2. Invitation: revealed only after the ball opens -->
+  <section id="invite" class="invite" hidden aria-labelledby="invite-heading">
+    <h2 id="invite-heading" class="sr-only" tabindex="-1">Briella turns 6! You're invited.</h2>
+
+    <figure class="art">
+      <picture>
+        <source data-srcset="/assets/invitation.webp" type="image/webp" />
+        <img
+          id="art-img"
+          data-src="/assets/invitation.png"
+          width="1186" height="1327"
+          alt="Briella turns 6! Pokémon birthday invitation featuring Briella throwing a Poké Ball with Mew, Mewtwo, Dialga and Gyarados. October 28, 2026 at 2 PM, Timezone, Greenhills."
+        />
+      </picture>
+    </figure>
+
+    <div class="panel">
+      <p id="countdown" class="countdown" aria-live="polite"></p>
+
+      <button id="btn-rsvp" class="btn btn-primary" type="button">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v.4l8 5.1 8-5.1V6H4Zm16 2.8-7.5 4.8a1 1 0 0 1-1 0L4 8.8V18h16V8.8Z"/></svg>
+        RSVP now
+      </button>
+
+      <div class="btn-row">
+        <button id="btn-map" class="btn btn-tile" type="button">
+          <svg aria-hidden="true" viewBox="0 0 24 24" class="ic-red"><path d="M12 2a7 7 0 0 1 7 7c0 5.2-7 13-7 13S5 14.2 5 9a7 7 0 0 1 7-7Zm0 4.5A2.5 2.5 0 1 0 12 11.5 2.5 2.5 0 0 0 12 6.5Z"/></svg>
+          Directions
+        </button>
+        <button id="btn-cal" class="btn btn-tile" type="button">
+          <svg aria-hidden="true" viewBox="0 0 24 24" class="ic-blue"><path d="M7 2a1 1 0 0 1 1 1v1h8V3a1 1 0 1 1 2 0v1h1a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h1V3a1 1 0 0 1 1-1Zm13 8H4v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9ZM8 13h3v3H8v-3Z"/></svg>
+          Calendar
+        </button>
+        <button id="btn-share" class="btn btn-tile" type="button">
+          <svg aria-hidden="true" viewBox="0 0 24 24" class="ic-yellow"><path d="M18 2a3.5 3.5 0 1 1-2.6 5.8l-6.5 3.3a3.5 3.5 0 0 1 0 1.8l6.5 3.3a3.5 3.5 0 1 1-.9 1.8l-6.5-3.3a3.5 3.5 0 1 1 0-5.4l6.5-3.3A3.5 3.5 0 0 1 18 2Z"/></svg>
+          Share
+        </button>
+      </div>
+
+      <div class="links">
+        <a class="link" href="/assets/briella-invitation.jpg" download="Briella-Turns-6-Invitation.jpg">Save invitation image</a>
+        <span aria-hidden="true">·</span>
+        <button id="btn-replay" class="link" type="button">Open the Poké Ball again</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- RSVP sheet -->
+  <dialog id="dlg-rsvp" class="sheet" aria-labelledby="rsvp-title">
+    <form id="rsvp-form" class="sheet-body" novalidate>
+      <div class="sheet-head">
+        <h3 id="rsvp-title">RSVP to Briella's party</h3>
+        <button class="sheet-close" type="button" data-close aria-label="Close">×</button>
+      </div>
+
+      <label class="field">
+        <span>Your name</span>
+        <input id="rsvp-name" name="name" type="text" autocomplete="name" placeholder="e.g. Ash Ketchum" required />
+        <small class="field-error" id="rsvp-name-err" hidden>Please enter your name so Briella knows who's coming.</small>
+      </label>
+
+      <fieldset class="choice">
+        <legend>Can you come?</legend>
+        <label><input type="radio" name="attending" value="yes" checked /><span>I'll be there!</span></label>
+        <label><input type="radio" name="attending" value="no" /><span>Can't make it</span></label>
+      </fieldset>
+
+      <div id="rsvp-counts" class="counts">
+        <div class="stepper" data-field="kids">
+          <span class="stepper-label" id="lbl-kids">Kids</span>
+          <button type="button" data-step="-1" aria-label="Fewer kids">−</button>
+          <output aria-labelledby="lbl-kids">1</output>
+          <button type="button" data-step="1" aria-label="More kids">+</button>
+        </div>
+        <div class="stepper" data-field="adults">
+          <span class="stepper-label" id="lbl-adults">Adults</span>
+          <button type="button" data-step="-1" aria-label="Fewer adults">−</button>
+          <output aria-labelledby="lbl-adults">1</output>
+          <button type="button" data-step="1" aria-label="More adults">+</button>
+        </div>
+      </div>
+
+      <label class="field">
+        <span>Message for Briella <em>(optional)</em></span>
+        <textarea id="rsvp-note" name="note" rows="2" placeholder="Happy birthday, Briella!"></textarea>
+      </label>
+
+      <div class="preview">
+        <span class="preview-label">Your RSVP message</span>
+        <pre id="rsvp-preview"></pre>
+      </div>
+
+      <button id="rsvp-send" class="btn btn-primary" type="submit">Send RSVP</button>
+      <div class="btn-row btn-row--small">
+        <button type="button" class="btn btn-ghost" data-rsvp="sms">Text</button>
+        <button type="button" class="btn btn-ghost" data-rsvp="whatsapp">WhatsApp</button>
+        <button type="button" class="btn btn-ghost" data-rsvp="copy">Copy</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Directions sheet -->
+  <dialog id="dlg-map" class="sheet" aria-labelledby="map-title">
+    <div class="sheet-body">
+      <div class="sheet-head">
+        <h3 id="map-title">Timezone, Greenhills</h3>
+        <button class="sheet-close" type="button" data-close aria-label="Close">×</button>
+      </div>
+      <p class="sheet-sub" id="map-address"></p>
+      <a id="map-google" class="btn btn-primary" target="_blank" rel="noopener">Open in Google Maps</a>
+      <div class="btn-row btn-row--small">
+        <a id="map-waze" class="btn btn-ghost" target="_blank" rel="noopener">Waze</a>
+        <a id="map-apple" class="btn btn-ghost" target="_blank" rel="noopener">Apple Maps</a>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Calendar sheet -->
+  <dialog id="dlg-cal" class="sheet" aria-labelledby="cal-title">
+    <div class="sheet-body">
+      <div class="sheet-head">
+        <h3 id="cal-title">Save the date</h3>
+        <button class="sheet-close" type="button" data-close aria-label="Close">×</button>
+      </div>
+      <p class="sheet-sub">Wednesday, October 28, 2026 · 2:00 PM</p>
+      <div id="cal-options" class="stack">
+        <a id="cal-google" class="btn btn-primary" target="_blank" rel="noopener">Google Calendar</a>
+        <a id="cal-ics" class="btn btn-secondary" href="/briella-birthday.ics">Apple / Outlook / Other</a>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <noscript>
+    <p class="noscript">This invitation needs JavaScript to open the Poké Ball. Party details: Briella turns 6 — October 28, 2026, 2:00 PM at Timezone, Greenhills.</p>
+  </noscript>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>
