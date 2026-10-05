@@ -1,6 +1,6 @@
 # Briella Turns 6 — Interactive Invitation
 
-Mobile-first Pokémon birthday invitation. Guests see a Poké Ball first; tapping it opens the ball, flashes, and reveals the two-page invitation artwork with RSVP, Directions, Calendar and Share buttons.
+Mobile-first Pokémon birthday invitation. Guests see the cover artwork first; tapping it ("TAP TO OPEN") bursts light from the cover's Poké Ball, flashes, and reveals the details page with RSVP, Directions, Calendar and Share buttons.
 
 - **Event:** Briella's 6th birthday · Wed, Oct 28, 2026 · 2:00–5:00 PM (Manila) · Timezone, Greenhills
 - **Stack:** plain HTML/CSS/JS + a zero-dependency Node server (`server.js`). No build step, no `npm install` needed.
@@ -92,9 +92,10 @@ briellainvitation/
     ├── styles.css
     ├── app.js                ← CONFIG lives here
     └── assets/
-        ├── invite-cover.webp/.jpg    page 1 of the invitation (cover)
-        ├── invite-details.webp/.jpg  page 2 (date, time, venue)
-        ├── invitation-original.webp  your original two-panel upload, untouched
+        ├── cover.webp/.jpg           page 1: the "TAP TO OPEN" cover (first screen)
+        ├── invite-details.webp/.jpg  page 2: date, time, venue (shown after the tap)
+        ├── cover-original.webp       your original cover upload, untouched
+        ├── invitation-original.webp  your earlier two-panel upload (source of page 2)
         ├── briella-invitation.jpg    "Save image" download
         ├── og.jpg                    link-preview image
         ├── apple-touch-icon.png
@@ -103,6 +104,6 @@ briellainvitation/
 
 ## Notes
 
-- The artwork is your two-panel image split into two pages: guests see the cover first, and it glides to the details page after a few seconds (or they swipe / tap the arrows). The untouched original is kept as `invitation-original.webp`.
+- Page 1 is the static cover (the first screen); page 2 (details) has no image source until the tap, so it can't appear early. It preloads in the background so the reveal is instant. "Back to cover" returns to page 1.
 - The artwork isn't attached to the page until the ball is tapped. It preloads in the background, so the reveal is instant.
 - `prefers-reduced-motion` skips the wobble, burst and flash and goes straight to the invitation.

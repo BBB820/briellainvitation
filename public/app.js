@@ -33,8 +33,7 @@
   const ball = $("#ball");
   const flash = $("#flash");
   const invite = $("#invite");
-  const artTrack = $("#art-track");
-  const slides = $$(".slide", artTrack);
+  const slides = $$(".slide");
 
   // ---------- Toast ----------
   let toastTimer;
@@ -67,7 +66,7 @@
   }
 
   // ---------- Artwork: preload while the guest looks at the ball ----------
-  // The <img>s have no src until reveal, so the artwork can't flash early.
+  // The details page has no src until reveal, so it can't flash early.
   const supportsWebp = document.createElement("canvas").toDataURL("image/webp").startsWith("data:image/webp");
   const artReady = Promise.all(slides.map((slide) => {
     const url = supportsWebp ? $("source", slide).dataset.srcset : $("img", slide).dataset.src;
@@ -87,41 +86,6 @@
     });
   }
 
-  // ---------- Two-page carousel (cover → party details) ----------
-  let page = 0;
-  let touched = false;
-  const prevBtn = $(".art-prev");
-  const nextBtn = $(".art-next");
-
-  function goTo(i, smooth = true) {
-    artTrack.scrollTo({ left: i * artTrack.clientWidth, behavior: smooth && !reduceMotion() ? "smooth" : "auto" });
-  }
-  function syncPage() {
-    page = Math.round(artTrack.scrollLeft / Math.max(1, artTrack.clientWidth));
-    prevBtn.hidden = page === 0;
-    nextBtn.hidden = page === slides.length - 1;
-    $$(".art-dots button").forEach((d, i) => d.setAttribute("aria-current", String(i === page)));
-  }
-  let scrollTimer;
-  artTrack.addEventListener("scroll", () => {
-    clearTimeout(scrollTimer);
-    scrollTimer = setTimeout(syncPage, 60);
-  }, { passive: true });
-  ["pointerdown", "touchstart", "wheel", "keydown"].forEach((ev) =>
-    artTrack.addEventListener(ev, () => { touched = true; }, { passive: true }));
-  prevBtn.addEventListener("click", () => { touched = true; goTo(page - 1); });
-  nextBtn.addEventListener("click", () => { touched = true; goTo(page + 1); });
-  $$(".art-dots button").forEach((d) => d.addEventListener("click", () => { touched = true; goTo(Number(d.dataset.go)); }));
-  window.addEventListener("resize", () => goTo(page, false));
-
-  // After the reveal, glide to the details once unless the guest has already swiped.
-  let autoTimer;
-  function scheduleAutoAdvance() {
-    clearTimeout(autoTimer);
-    touched = false;
-    autoTimer = setTimeout(() => { if (!touched && page === 0) goTo(1); }, 3800);
-  }
-
   // ---------- Opening sequence ----------
   let opening = false;
 
@@ -131,20 +95,16 @@
     if (navigator.vibrate) navigator.vibrate(30);
 
     if (reduceMotion()) {
-      await artReady;
+      await Promise.race([artReady, wait(2500)]);
       showInvite(false);
       return;
     }
 
     ball.classList.add("is-pressed");
-    await wait(160);
-    ball.classList.add("is-wobbling");
-    intro.classList.add("is-leaving");
-    await wait(560);
-    ball.classList.remove("is-wobbling");
+    await wait(180);
     ball.classList.add("is-open");
     if (navigator.vibrate) navigator.vibrate([20, 40, 60]);
-    await wait(380);
+    await wait(520);
 
     // Don't flash into an empty page on a slow connection.
     await Promise.race([artReady, wait(2500)]);
@@ -163,22 +123,18 @@
     invite.hidden = false;
     document.body.classList.add("is-revealed");
     window.scrollTo(0, 0);
-    goTo(0, false);
-    syncPage();
     if (animated) {
       invite.classList.add("is-revealing");
     }
-    scheduleAutoAdvance();
     $("#invite-heading").focus({ preventScroll: true });
   }
 
   function replay() {
     opening = false;
-    clearTimeout(autoTimer);
     invite.hidden = true;
     invite.classList.remove("is-revealing");
     document.body.classList.remove("is-revealed");
-    ball.classList.remove("is-pressed", "is-wobbling", "is-open");
+    ball.classList.remove("is-pressed", "is-open");
     intro.classList.remove("is-leaving");
     flash.classList.remove("is-on", "is-off");
     intro.hidden = false;

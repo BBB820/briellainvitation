@@ -10,7 +10,7 @@
   <!-- Link previews (Messenger, Viber, WhatsApp, iMessage) -->
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Briella Turns 6! — You're invited" />
-  <meta property="og:description" content="Tap the Poké Ball to open your invitation. Oct 28, 2026 · 2 PM · Timezone, Greenhills" />
+  <meta property="og:description" content="Tap to open your invitation. Oct 28, 2026 · 2 PM · Timezone, Greenhills" />
   <meta property="og:url" content="{{ORIGIN}}/" />
   <meta property="og:image" content="{{ORIGIN}}/assets/og.jpg" />
   <meta property="og:image:width" content="1200" />
@@ -19,8 +19,7 @@
 
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
   <link rel="icon" href="/assets/apple-touch-icon.png" />
-  <link rel="preload" href="/assets/fonts/luckiest-guy-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="/assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
@@ -36,21 +35,20 @@
     </svg>
   </div>
 
-  <!-- 1. Intro: the only thing guests see until they tap the ball -->
+  <!-- 1. Cover: the only thing guests see until they tap it -->
   <main id="intro" class="intro">
-    <p class="intro-kicker">A special invitation has arrived</p>
-    <h1 class="intro-title">Ready, Trainer?</h1>
-
-    <button id="ball" class="ball" type="button" aria-label="Open the Poké Ball to reveal your invitation">
-      <span class="ball-glow" aria-hidden="true"></span>
-      <span class="ball-light" aria-hidden="true"></span>
-      <span class="ball-half ball-top" aria-hidden="true"><span class="ball-shine"></span></span>
-      <span class="ball-half ball-bottom" aria-hidden="true"></span>
-      <span class="ball-band" aria-hidden="true"></span>
-      <span class="ball-button" aria-hidden="true"></span>
+    <div class="cover-bg" aria-hidden="true"></div>
+    <h1 class="sr-only">Briella turns 6!</h1>
+    <button id="ball" class="cover" type="button" aria-label="Tap to open Briella's birthday invitation">
+      <span class="cover-frame">
+        <picture>
+          <source srcset="/assets/cover.webp" type="image/webp" />
+          <img src="/assets/cover.jpg" width="708" height="1145" alt="" fetchpriority="high" />
+        </picture>
+        <span class="cover-pulse" aria-hidden="true"></span>
+        <span class="cover-burst" aria-hidden="true"></span>
+      </span>
     </button>
-
-    <p class="intro-hint" aria-hidden="true">Tap the Poké Ball</p>
   </main>
 
   <div id="flash" class="flash" aria-hidden="true"></div>
@@ -59,34 +57,13 @@
   <section id="invite" class="invite" hidden aria-labelledby="invite-heading">
     <h2 id="invite-heading" class="sr-only" tabindex="-1">Briella turns 6! You're invited.</h2>
 
-    <div class="art" aria-roledescription="carousel" aria-label="Invitation">
-      <div class="art-track" id="art-track" tabindex="0" aria-label="Invitation pages, swipe to change">
-        <figure class="slide" aria-roledescription="slide" aria-label="1 of 2: cover">
-          <picture>
-            <source data-srcset="/assets/invite-cover.webp" type="image/webp" />
-            <img data-src="/assets/invite-cover.jpg" width="725" height="1145"
-              alt="Briella turns 6! Briella with Pikachu, Mewtwo, Mew, Charizard, Gardevoir and Rayquaza in front of a Pokémon Center." />
-          </picture>
-        </figure>
-        <figure class="slide" aria-roledescription="slide" aria-label="2 of 2: party details">
-          <picture>
-            <source data-srcset="/assets/invite-details.webp" type="image/webp" />
-            <img data-src="/assets/invite-details.jpg" width="632" height="1145"
-              alt="You're invited to a Pokémon birthday party! Wednesday, October 28, 2026, 2:00 PM, Timezone, Greenhills." />
-          </picture>
-        </figure>
-      </div>
-      <button class="art-nav art-prev" type="button" aria-label="Show cover" hidden>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 5.4 9 12l6.4 6.6-1.4 1.4L6.2 12 14 4z"/></svg>
-      </button>
-      <button class="art-nav art-next" type="button" aria-label="Show party details">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.6 5.4 15 12l-6.4 6.6 1.4 1.4 7.8-8L10 4z"/></svg>
-      </button>
-      <div class="art-dots">
-        <button type="button" data-go="0" aria-label="Show cover" aria-current="true"></button>
-        <button type="button" data-go="1" aria-label="Show party details"></button>
-      </div>
-    </div>
+    <figure class="art">
+      <picture class="slide">
+        <source data-srcset="/assets/invite-details.webp" type="image/webp" />
+        <img data-src="/assets/invite-details.jpg" width="632" height="1145"
+          alt="You're invited to a Pokémon birthday party! Briella turns 6. Wednesday, October 28, 2026, 2:00 PM, Timezone, Greenhills." />
+      </picture>
+    </figure>
 
     <div class="panel">
       <p id="countdown" class="countdown" aria-live="polite"></p>
@@ -114,7 +91,7 @@
       <div class="links">
         <a class="link" href="/assets/briella-invitation.jpg" download="Briella-Turns-6-Invitation.jpg">Save invitation image</a>
         <span aria-hidden="true">·</span>
-        <button id="btn-replay" class="link" type="button">Open the Poké Ball again</button>
+        <button id="btn-replay" class="link" type="button">Back to cover</button>
       </div>
     </div>
   </section>
