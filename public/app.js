@@ -84,12 +84,121 @@
       src.stop(at + dur);
     }
 
+    // ---- Background music for the RSVP page: an original 8-bar chiptune loop
+    // (I–vi–IV–V in C, 120 bpm, eighth-note grid), scheduled just ahead of time.
+    const STEP = 0.25; // one eighth note at 120 bpm
+    const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
+    const MELODY = [
+      76, 79, 84, 79, 76, 74, 72, 0,   69, 72, 76, 72, 74, 76, 0, 0,
+      77, 76, 74, 72, 69, 72, 74, 0,   74, 79, 77, 76, 74, 71, 67, 0,
+      72, 76, 79, 84, 83, 84, 79, 0,   81, 79, 76, 79, 81, 84, 0, 0,
+      77, 81, 84, 81, 79, 77, 76, 74,  79, 77, 76, 74, 71, 74, 79, 0,
+    ];
+    const ROOTS = [48, 45, 41, 43, 48, 45, 41, 43]; // C Am F G ×2
+    let bus = null;
+    let musicOn = false;
+    let nextAt = 0;
+    let step = 0;
+    let timer = null;
+
+    function schedule() {
+      while (nextAt < ctx.currentTime + 0.12) {
+        const bar = Math.floor(step / 8) % 8;
+        const beat = step % 8;
+        const note = MELODY[step % 64];
+        if (note) voice(midi(note), nextAt, STEP * 0.9, "square", 0.05);
+        const root = ROOTS[bar];
+        if (beat % 2 === 0) voice(midi(beat % 4 === 0 ? root : root + 7), nextAt, STEP * 1.6, "triangle", 0.11);
+        else hat(nextAt);
+        if (beat === 0) [0, 4, 7].forEach((i) => voice(midi(root + 24 + i), nextAt, STEP * 3.5, "sine", 0.018));
+        nextAt += STEP;
+        step++;
+      }
+    }
+    function voice(freq, at, dur, type, vol) {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, at);
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(vol, at + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+      o.connect(g).connect(bus);
+      o.start(at);
+      o.stop(at + dur + 0.05);
+    }
+    let hatBuf = null;
+    function hat(at) {
+      if (!hatBuf) {
+        hatBuf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.05), ctx.sampleRate);
+        const d = hatBuf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = hatBuf;
+      const f = ctx.createBiquadFilter();
+      f.type = "highpass";
+      f.frequency.value = 7000;
+      const g = ctx.createGain();
+      g.gain.value = 0.025;
+      src.connect(f).connect(g).connect(bus);
+      src.start(at);
+    }
+    function startMusic(delay = 0) {
+      if (musicOn || muted || !audio()) return;
+      musicOn = true;
+      bus = ctx.createGain();
+      bus.connect(master);
+      const t = ctx.currentTime + delay;
+      bus.gain.setValueAtTime(0.0001, ctx.currentTime);
+      bus.gain.setValueAtTime(0.0001, t);
+      bus.gain.exponentialRampToValueAtTime(1, t + 1.2);
+      nextAt = t;
+      step = 0;
+      timer = setInterval(schedule, 25);
+      schedule();
+    }
+    function stopMusic() {
+      if (!musicOn) return;
+      musicOn = false;
+      clearInterval(timer);
+      const old = bus;
+      old.gain.cancelScheduledValues(ctx.currentTime);
+      old.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.15);
+      setTimeout(() => old.disconnect(), 800);
+    }
+    // Don't play in a background tab or a locked phone.
+    document.addEventListener("visibilitychange", () => {
+      if (!ctx) return;
+      if (document.hidden) ctx.suspend();
+      else if (!muted) ctx.resume();
+    });
+
     return {
       get muted() { return muted; },
       setMuted(m) {
         muted = m;
         try { localStorage.setItem("briella-muted", m ? "1" : "0"); } catch { /* ignore */ }
         if (master) master.gain.setTargetAtTime(m ? 0 : 1.6, ctx.currentTime, 0.02);
+        if (m) stopMusic();
+      },
+      startMusic,
+      stopMusic,
+      get musicOn() { return musicOn; },
+      // Soft blip when the RSVP form opens.
+      blip() {
+        if (muted || !audio()) return;
+        const t = ctx.currentTime + 0.01;
+        tone(880, t, 0.07, { type: "triangle", vol: 0.12 });
+        tone(1320, t + 0.06, 0.09, { type: "triangle", vol: 0.1 });
+      },
+      // Little fanfare when an RSVP is saved.
+      success() {
+        if (muted || !audio()) return;
+        const t = ctx.currentTime + 0.02;
+        [[784, 0], [988, 0.09], [1175, 0.18], [1568, 0.27]].forEach(([f, o]) =>
+          tone(f, t + o, o === 0.27 ? 0.45 : 0.1, { vol: 0.09 }));
+        [2637, 3136, 3951].forEach((f, i) => tone(f, t + 0.32 + i * 0.05, 0.3, { type: "sine", vol: 0.05 }));
       },
       // Timed to the opening animation: press → burst (~0.18s) → flash (~0.7s) → reveal.
       open(short) {
@@ -127,6 +236,7 @@
   soundBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     Sfx.setMuted(!Sfx.muted);
+    if (!Sfx.muted && !invite.hidden) Sfx.startMusic(0.1);
     renderSound();
   });
   renderSound();
@@ -215,6 +325,7 @@
     if (reduceMotion()) {
       await Promise.race([artReady, wait(2500)]);
       showInvite(false);
+      Sfx.startMusic(1.4);
       return;
     }
 
@@ -233,6 +344,7 @@
     showInvite(true);
     flash.classList.remove("is-on");
     flash.classList.add("is-off");
+    Sfx.startMusic(1.5); // after the opening jingle finishes
   }
 
   function showInvite(animated) {
@@ -249,6 +361,7 @@
   }
 
   function replay() {
+    Sfx.stopMusic();
     opening = false;
     cue.hidden = true;
     invite.hidden = true;
@@ -454,6 +567,7 @@
     const first = nameInput.value.trim().split(/\s+/)[0];
     try {
       await saveRsvp();
+      Sfx.success();
       $("#rsvp-done-title").textContent = attending() ? `Got it, ${first}! See you there!` : `Thanks for letting us know, ${first}.`;
       $("#rsvp-done-sub").textContent = attending()
         ? "Briella's family has your RSVP."
@@ -486,6 +600,7 @@
   $$("[data-rsvp]").forEach((b) => b.addEventListener("click", () => sendVia(b.dataset.rsvp)));
 
   $("#btn-rsvp").addEventListener("click", () => {
+    Sfx.blip();
     showStep(false);
     renderRsvp();
     openSheet($("#dlg-rsvp"));
