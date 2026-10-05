@@ -2,14 +2,15 @@
   "use strict";
 
   // ---------------------------------------------------------------
-  // Party settings. Fill in rsvpPhone (international format, digits
-  // only, e.g. "639171234567") so Text/WhatsApp RSVPs go straight to
-  // you. Left blank, guests pick the recipient themselves.
+  // Party settings. Phone numbers use international format, digits
+  // only (e.g. "639171234567"). A blank number lets guests pick the
+  // recipient themselves.
   // ---------------------------------------------------------------
   const CONFIG = {
     celebrant: "Briella",
     title: "Briella's 6th Birthday Party",
-    rsvpPhone: "",
+    rsvpPhone: "639178202322", // 0917 820 2322: Text RSVPs go here
+    whatsappPhone: "",          // blank: guests pick the WhatsApp chat
     venue: "Timezone, Greenhills",
     address: "Greenhills Shopping Center, Ortigas Ave, San Juan City, Metro Manila",
     mapsQuery: "Timezone Greenhills, San Juan City, Metro Manila",
@@ -294,7 +295,7 @@
     return `sms:${CONFIG.rsvpPhone ? "+" + CONFIG.rsvpPhone : ""}${sep}body=${encodeURIComponent(text)}`;
   }
   function waLink(text) {
-    return `https://wa.me/${CONFIG.rsvpPhone}?text=${encodeURIComponent(text)}`;
+    return `https://wa.me/${CONFIG.whatsappPhone}?text=${encodeURIComponent(text)}`;
   }
 
   async function sendVia(channel) {
