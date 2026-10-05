@@ -29,6 +29,108 @@
   const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
+  // ---------- Sound effects (synthesised: no audio files, nothing copyrighted) ----------
+  const Sfx = (() => {
+    let ctx = null;
+    let master = null;
+    let muted = false;
+    try { muted = localStorage.getItem("briella-muted") === "1"; } catch { /* private mode */ }
+
+    function audio() {
+      if (!ctx) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return null;
+        ctx = new Ctx();
+        master = ctx.createGain();
+        master.gain.value = 1.6;
+        master.connect(ctx.destination);
+      }
+      if (ctx.state === "suspended") ctx.resume();
+      return ctx;
+    }
+
+    function tone(freq, at, dur, { type = "square", vol = 0.15, slideTo } = {}) {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, at);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, at + dur);
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(vol, at + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+      o.connect(g).connect(master);
+      o.start(at);
+      o.stop(at + dur + 0.05);
+    }
+
+    function whoosh(at, dur, { from = 300, to = 5000, vol = 0.2, swell = true } = {}) {
+      const len = Math.ceil(ctx.sampleRate * dur);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const f = ctx.createBiquadFilter();
+      f.type = "bandpass";
+      f.Q.value = 1.2;
+      f.frequency.setValueAtTime(from, at);
+      f.frequency.exponentialRampToValueAtTime(to, at + dur);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(vol, at + (swell ? dur * 0.85 : 0.02));
+      g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+      src.connect(f).connect(g).connect(master);
+      src.start(at);
+      src.stop(at + dur);
+    }
+
+    return {
+      get muted() { return muted; },
+      setMuted(m) {
+        muted = m;
+        try { localStorage.setItem("briella-muted", m ? "1" : "0"); } catch { /* ignore */ }
+        if (master) master.gain.setTargetAtTime(m ? 0 : 1.6, ctx.currentTime, 0.02);
+      },
+      // Timed to the opening animation: press → burst (~0.18s) → flash (~0.7s) → reveal.
+      open(short) {
+        if (muted || !audio()) return;
+        const t = ctx.currentTime + 0.02;
+        tone(1900, t, 0.035, { vol: 0.1 });                      // button click
+        tone(950, t + 0.03, 0.05, { vol: 0.08 });
+        if (!short) {
+          whoosh(t + 0.16, 0.56, { from: 260, to: 5200, vol: 0.2 }); // rising whoosh
+          tone(196, t + 0.16, 0.56, { type: "sawtooth", vol: 0.035, slideTo: 880 });
+        }
+        const p = t + (short ? 0.08 : 0.72);
+        tone(1320, p, 0.28, { type: "triangle", vol: 0.22, slideTo: 330 }); // pop
+        whoosh(p, 0.4, { from: 7000, to: 1400, vol: 0.14, swell: false });
+        [2093, 2637, 3136, 4186, 3520].forEach((f, i) =>             // sparkles
+          tone(f, p + 0.07 + i * 0.055, 0.32, { type: "sine", vol: 0.07 }));
+        // Short original victory jingle.
+        const j = p + 0.34;
+        [[523, 0, 0.1], [659, 0.11, 0.1], [784, 0.22, 0.1], [1047, 0.33, 0.16],
+         [880, 0.52, 0.1], [988, 0.63, 0.1], [1047, 0.74, 0.5]].forEach(([f, o, d]) =>
+          tone(f, j + o, d, { vol: 0.085 }));
+        tone(262, j, 0.42, { type: "triangle", vol: 0.13 });
+        tone(349, j + 0.52, 0.2, { type: "triangle", vol: 0.12 });
+        tone(392, j + 0.74, 0.55, { type: "triangle", vol: 0.13 });
+      },
+    };
+  })();
+
+  const soundBtn = $("#sound-toggle");
+  function renderSound() {
+    soundBtn.setAttribute("aria-pressed", String(!Sfx.muted));
+    soundBtn.setAttribute("aria-label", Sfx.muted ? "Sound off. Tap to turn sound on" : "Sound on. Tap to turn sound off");
+    soundBtn.classList.toggle("is-muted", Sfx.muted);
+  }
+  soundBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    Sfx.setMuted(!Sfx.muted);
+    renderSound();
+  });
+  renderSound();
+
   const intro = $("#intro");
   const ball = $("#ball");
   const flash = $("#flash");
@@ -106,6 +208,8 @@
   async function openBall() {
     if (opening) return;
     opening = true;
+    // Must run synchronously inside the tap so mobile browsers allow audio.
+    Sfx.open(reduceMotion());
     if (navigator.vibrate) navigator.vibrate(30);
 
     if (reduceMotion()) {

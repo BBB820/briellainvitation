@@ -68,6 +68,14 @@ One-time Railway setup:
    password. The list then opens at `/rsvps?key=<password>`. Without it, anyone
    who has the `/rsvps` link can view the list.
 
+## Sound
+
+Tapping the cover plays an original, synthesised opening sound (button click,
+rising whoosh, pop + sparkles at the flash, short victory jingle). It's generated
+in the browser by `Sfx` in `app.js`, so there are no audio files and no copyrighted
+music. The speaker button (top-right) mutes it and the choice is remembered.
+On iPhone, sound only plays when the ring/silent switch is not on silent.
+
 ## How each button works
 
 | Button | Behavior | Fallback |
