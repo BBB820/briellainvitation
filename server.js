@@ -160,6 +160,19 @@ async function handleRsvpPost(req, res) {
   sendJson(res, 200, { ok: true });
 }
 
+// Removes every RSVP under this name (case-insensitive). Writes a temp file
+// then renames it, so a crash mid-write can't corrupt the list.
+function deleteGuest(name) {
+  const target = name.trim().toLowerCase();
+  const all = readRsvps();
+  const keep = all.filter((r) => r.name.trim().toLowerCase() !== target);
+  if (keep.length === all.length) return 0;
+  const tmp = RSVP_FILE + ".tmp";
+  fs.writeFileSync(tmp, keep.map((r) => JSON.stringify(r) + "\n").join(""));
+  fs.renameSync(tmp, RSVP_FILE);
+  return all.length - keep.length;
+}
+
 // ---------- Guest list (host only) ----------
 
 function isAdmin(url) {
@@ -186,7 +199,7 @@ function csvFile(rows) {
   return "\ufeff" + lines.join("\r\n") + "\r\n"; // BOM so Excel reads UTF-8 names correctly
 }
 
-function guestListPage(rows, key) {
+function guestListPage(rows, key, deleted) {
   const q = key ? `?key=${encodeURIComponent(key)}` : "";
   const yes = rows.filter((r) => r.attending);
   const kids = yes.reduce((n, r) => n + r.kids, 0);
@@ -194,13 +207,17 @@ function guestListPage(rows, key) {
   const persistent = Boolean(process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.DATA_DIR);
   const body = rows.length
     ? rows.slice().reverse().map((r) => `<tr class="${r.attending ? "" : "no"}">
-        <td>${esc(r.name)}</td>
-        <td>${r.attending ? "✅ Yes" : "❌ No"}</td>
-        <td class="n">${r.attending ? r.kids : "–"}</td>
-        <td class="n">${r.attending ? r.adults : "–"}</td>
-        <td>${esc(r.note)}</td>
-        <td class="t">${esc(manila(r.at))}</td></tr>`).join("")
-    : `<tr><td colspan="6" class="empty">No RSVPs yet.</td></tr>`;
+        <td class="nm">${esc(r.name)}</td>
+        <td data-l="Coming">${r.attending ? "✅ Yes" : "❌ No"}</td>
+        <td class="n" data-l="Kids">${r.attending ? r.kids : "–"}</td>
+        <td class="n" data-l="Adults">${r.attending ? r.adults : "–"}</td>
+        <td class="msg">${esc(r.note)}</td>
+        <td class="t">${esc(manila(r.at))}</td>
+        <td class="d"><form method="post" action="/rsvps/delete${q}" data-name="${esc(r.name)}">
+          <input type="hidden" name="name" value="${esc(r.name)}">
+          <button class="del" type="submit" aria-label="Delete ${esc(r.name)}">Delete</button>
+        </form></td></tr>`).join("")
+    : `<tr><td colspan="7" class="empty">No RSVPs yet.</td></tr>`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <title>Briella's RSVPs</title>
@@ -226,11 +243,35 @@ function guestListPage(rows, key) {
   td.t { color: #5a6a92; white-space: nowrap; font-size: 14px; }
   tr.no td { color: #8090b0; }
   .empty { text-align: center; color: #5a6a92; padding: 30px; }
+  td.d { width: 1%; }
+  td.d form { margin: 0; }
+  .del { padding: 7px 10px; border: 1.5px solid #f3c2c5; border-radius: 9px; background: #fff; color: #c81d25; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .del:hover { background: #fdeced; }
+  .flash { background: #e8f7ee; border: 1px solid #9fd8b4; border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; }
   @media (max-width: 560px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  /* Phones: each guest becomes a card so Delete is always on screen. */
+  @media (max-width: 640px) {
+    table { min-width: 0; }
+    thead { display: none; }
+    tr { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 12px 14px; border-bottom: 1px solid #eef1f8; }
+    td { display: block; padding: 0; border: 0; }
+    td.nm { grid-column: 1; font-weight: 800; font-size: 17px; }
+    td.d { grid-column: 2; grid-row: 1 / span 3; align-self: center; width: auto; }
+    td[data-l] { display: inline; }
+    td[data-l="Coming"] { grid-column: 1; }
+    td.n { text-align: left; }
+    td.n::before { content: attr(data-l) ": "; color: #5a6a92; font-weight: 600; }
+    td.n[data-l="Kids"] { grid-column: 1; }
+    td.n[data-l="Adults"] { grid-column: 1; }
+    td.msg:empty { display: none; }
+    td.msg, td.t { grid-column: 1; }
+    td.empty { grid-column: 1 / -1; }
+  }
 </style></head><body><main>
   <h1>Briella's RSVPs</h1>
   <p class="sub">Party: Wed, Oct 28, 2026 · 2:00 PM · Timezone, Greenhills</p>
   ${persistent ? "" : `<p class="warn"><b>Storage not set up:</b> no Railway Volume is attached, so this list will be erased on the next update. In Railway, add a Volume to this service with mount path <code>/data</code>.</p>`}
+  ${deleted ? `<p class="flash">Deleted <b>${esc(deleted)}</b> from the guest list.</p>` : ""}
   <div class="stats">
     <div class="stat"><b>${yes.length}</b><span>Families coming</span></div>
     <div class="stat"><b>${kids}</b><span>Kids</span></div>
@@ -242,10 +283,18 @@ function guestListPage(rows, key) {
     <a class="btn alt" href="/rsvps${q}">Refresh</a>
   </div>
   <div class="wrap"><table>
-    <thead><tr><th>Name</th><th>Coming</th><th>Kids</th><th>Adults</th><th>Message</th><th>Sent</th></tr></thead>
+    <thead><tr><th>Name</th><th>Coming</th><th>Kids</th><th>Adults</th><th>Message</th><th>Sent</th><th></th></tr></thead>
     <tbody>${body}</tbody>
   </table></div>
-</main></body></html>`;
+</main>
+<script>
+  document.querySelectorAll("form[data-name]").forEach(function (f) {
+    f.addEventListener("submit", function (e) {
+      if (!confirm("Delete " + f.dataset.name + " from the guest list? This can't be undone.")) e.preventDefault();
+    });
+  });
+</script>
+</body></html>`;
 }
 
 function handleAdmin(url, res, asCsv) {
@@ -264,7 +313,7 @@ function handleAdmin(url, res, asCsv) {
     return res.end(csvFile(rows));
   }
   res.writeHead(200, { "Content-Type": TYPES[".html"], "Cache-Control": "no-store", "X-Robots-Tag": "noindex" });
-  res.end(guestListPage(rows, url.searchParams.get("key") || ""));
+  res.end(guestListPage(rows, url.searchParams.get("key") || "", url.searchParams.get("deleted") || ""));
 }
 
 const server = http.createServer((req, res) => {
@@ -287,6 +336,26 @@ const server = http.createServer((req, res) => {
     handleRsvpPost(req, res).catch((err) => {
       console.error(err);
       if (!res.headersSent) sendJson(res, 500, { ok: false, error: "Server error." });
+    });
+    return;
+  }
+
+  if (pathname === "/rsvps/delete") {
+    if (req.method !== "POST") { res.writeHead(405, { Allow: "POST" }); return res.end(); }
+    if (!isAdmin(url)) { res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" }); return res.end("Wrong or missing key."); }
+    readBody(req).then((raw) => {
+      const name = (new URLSearchParams(raw).get("name") || "").trim();
+      const removed = name ? deleteGuest(name) : 0;
+      if (removed) console.log(`Deleted RSVP: ${name}`);
+      const back = new URLSearchParams();
+      if (url.searchParams.get("key")) back.set("key", url.searchParams.get("key"));
+      if (removed) back.set("deleted", name);
+      const qs = back.toString();
+      res.writeHead(303, { Location: "/rsvps" + (qs ? "?" + qs : "") });
+      res.end();
+    }).catch((err) => {
+      console.error(err);
+      if (!res.headersSent) { res.writeHead(500); res.end("Could not delete."); }
     });
     return;
   }
