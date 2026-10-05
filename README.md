@@ -94,6 +94,8 @@ briellainvitation/
     └── assets/
         ├── cover.webp/.jpg           page 1: the "TAP TO OPEN" cover (first screen)
         ├── invite-details.webp/.jpg  page 2: date, time, venue (shown after the tap)
+        ├── cover-ext.webp/.jpg       cover with painted sky/ground continuation (full-screen fill)
+        ├── details-tail.webp/.jpg    street continuation below page 2 (behind the buttons)
         ├── cover-original.webp       your original cover upload, untouched
         ├── invitation-original.webp  your earlier two-panel upload (source of page 2)
         ├── briella-invitation.jpg    "Save image" download
@@ -105,5 +107,6 @@ briellainvitation/
 ## Notes
 
 - Page 1 is the static cover (the first screen); page 2 (details) has no image source until the tap, so it can't appear early. It preloads in the background so the reveal is instant. "Back to cover" returns to page 1.
+- On phones both pages are full screen, edge to edge: where a screen is taller than the art, the sky continues above the cover and the ground/street continues below (soft painted extensions, no copied shapes). On tablets and computers the cover sits on a blurred copy of itself.
 - The artwork isn't attached to the page until the ball is tapped. It preloads in the background, so the reveal is instant.
 - `prefers-reduced-motion` skips the wobble, burst and flash and goes straight to the invitation.

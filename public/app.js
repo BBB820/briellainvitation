@@ -86,6 +86,20 @@
     });
   }
 
+  // ---------- "RSVP & party info" cue while the buttons are below the fold ----------
+  const cue = $("#scroll-cue");
+  const panelEl = $(".panel");
+  let panelSeen = false;
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver((entries) => {
+      panelSeen = entries.some((e) => e.isIntersecting);
+      cue.hidden = panelSeen || invite.hidden;
+    }, { threshold: 0.01, rootMargin: "0px 0px -40px 0px" }).observe($("#btn-rsvp"));
+  }
+  cue.addEventListener("click", () => {
+    panelEl.scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" });
+  });
+
   // ---------- Opening sequence ----------
   let opening = false;
 
@@ -126,11 +140,13 @@
     if (animated) {
       invite.classList.add("is-revealing");
     }
+    requestAnimationFrame(() => { cue.hidden = panelSeen; });
     $("#invite-heading").focus({ preventScroll: true });
   }
 
   function replay() {
     opening = false;
+    cue.hidden = true;
     invite.hidden = true;
     invite.classList.remove("is-revealing");
     document.body.classList.remove("is-revealed");
