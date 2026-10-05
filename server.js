@@ -13,7 +13,8 @@ const ROOT = path.join(__dirname, "public");
 // every redeploy.
 const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.DATA_DIR || path.join(__dirname, "data");
 const RSVP_FILE = path.join(DATA_DIR, "rsvps.jsonl");
-// Password for the guest list page (/rsvps?key=...). Set it in Railway → Variables.
+// Optional password for the guest list. Unset (the default), /rsvps is open to
+// anyone with the link; set ADMIN_KEY in Railway → Variables to require ?key=...
 const ADMIN_KEY = process.env.ADMIN_KEY || "";
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -162,8 +163,9 @@ async function handleRsvpPost(req, res) {
 // ---------- Guest list (host only) ----------
 
 function isAdmin(url) {
+  if (!ADMIN_KEY) return true;
   const key = url.searchParams.get("key") || "";
-  if (!ADMIN_KEY || key.length !== ADMIN_KEY.length) return false;
+  if (key.length !== ADMIN_KEY.length) return false;
   return crypto.timingSafeEqual(Buffer.from(key), Buffer.from(ADMIN_KEY));
 }
 
@@ -185,6 +187,7 @@ function csvFile(rows) {
 }
 
 function guestListPage(rows, key) {
+  const q = key ? `?key=${encodeURIComponent(key)}` : "";
   const yes = rows.filter((r) => r.attending);
   const kids = yes.reduce((n, r) => n + r.kids, 0);
   const adults = yes.reduce((n, r) => n + r.adults, 0);
@@ -227,7 +230,7 @@ function guestListPage(rows, key) {
 </style></head><body><main>
   <h1>Briella's RSVPs</h1>
   <p class="sub">Party: Wed, Oct 28, 2026 · 2:00 PM · Timezone, Greenhills</p>
-  ${persistent ? "" : `<p class="warn"><b>Heads up:</b> no Railway Volume is attached, so this list will be erased on the next redeploy. Attach a Volume to keep it.</p>`}
+  ${persistent ? "" : `<p class="warn"><b>Storage not set up:</b> no Railway Volume is attached, so this list will be erased on the next update. In Railway, add a Volume to this service with mount path <code>/data</code>.</p>`}
   <div class="stats">
     <div class="stat"><b>${yes.length}</b><span>Families coming</span></div>
     <div class="stat"><b>${kids}</b><span>Kids</span></div>
@@ -235,8 +238,8 @@ function guestListPage(rows, key) {
     <div class="stat"><b>${rows.length - yes.length}</b><span>Can't make it</span></div>
   </div>
   <div class="actions">
-    <a class="btn" href="/rsvps.csv?key=${encodeURIComponent(key)}">Download spreadsheet (CSV)</a>
-    <a class="btn alt" href="/rsvps?key=${encodeURIComponent(key)}">Refresh</a>
+    <a class="btn" href="/rsvps.csv${q}">Download spreadsheet (CSV)</a>
+    <a class="btn alt" href="/rsvps${q}">Refresh</a>
   </div>
   <div class="wrap"><table>
     <thead><tr><th>Name</th><th>Coming</th><th>Kids</th><th>Adults</th><th>Message</th><th>Sent</th></tr></thead>
@@ -246,10 +249,6 @@ function guestListPage(rows, key) {
 }
 
 function handleAdmin(url, res, asCsv) {
-  if (!ADMIN_KEY) {
-    res.writeHead(503, { "Content-Type": "text/plain; charset=utf-8" });
-    return res.end("Guest list is locked. Set the ADMIN_KEY variable in Railway to open it.");
-  }
   if (!isAdmin(url)) {
     res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
     return res.end("Wrong or missing key.");
@@ -257,14 +256,15 @@ function handleAdmin(url, res, asCsv) {
   const rows = latestPerGuest(readRsvps());
   if (asCsv) {
     res.writeHead(200, {
+      "X-Robots-Tag": "noindex",
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": 'attachment; filename="briella-rsvps.csv"',
       "Cache-Control": "no-store",
     });
     return res.end(csvFile(rows));
   }
-  res.writeHead(200, { "Content-Type": TYPES[".html"], "Cache-Control": "no-store" });
-  res.end(guestListPage(rows, url.searchParams.get("key")));
+  res.writeHead(200, { "Content-Type": TYPES[".html"], "Cache-Control": "no-store", "X-Robots-Tag": "noindex" });
+  res.end(guestListPage(rows, url.searchParams.get("key") || ""));
 }
 
 const server = http.createServer((req, res) => {
@@ -342,5 +342,5 @@ server.listen(PORT, "0.0.0.0", () => {
   if (!process.env.RAILWAY_VOLUME_MOUNT_PATH && process.env.RAILWAY_ENVIRONMENT) {
     console.warn("No Railway Volume attached: RSVPs will be lost on redeploy.");
   }
-  if (!ADMIN_KEY) console.warn("ADMIN_KEY is not set: the /rsvps guest list is locked.");
+  console.log(ADMIN_KEY ? "Guest list: /rsvps?key=<ADMIN_KEY>" : "Guest list: /rsvps (no password)");
 });

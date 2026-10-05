@@ -52,20 +52,21 @@ Go to **Settings → Networking → Custom Domain** and add the CNAME record Rai
 Every RSVP is saved on the server. Open your private guest list at:
 
 ```
-https://<your-railway-domain>/rsvps?key=<ADMIN_KEY>
+https://<your-railway-domain>/rsvps
 ```
 
 It shows totals (families, kids, adults, can't make it), every response, and a
 **Download spreadsheet (CSV)** button that opens in Excel or Google Sheets.
 If a guest RSVPs again under the same name, their latest answer replaces the old one.
 
-One-time Railway setup (required):
+One-time Railway setup:
 
 1. **Keep the list safe across redeploys:** right-click the service (or press
    Ctrl/Cmd+K) → **Add Volume** → mount path `/data`. Without a Volume the list
    is erased on every redeploy; the guest list page warns you if one is missing.
-2. **Set the password:** service → **Variables** → **New Variable** →
-   `ADMIN_KEY` = a password only you know. Until it's set, the guest list is locked.
+2. *(Optional)* **Add a password:** service → **Variables** → `ADMIN_KEY` = a
+   password. The list then opens at `/rsvps?key=<password>`. Without it, anyone
+   who has the `/rsvps` link can view the list.
 
 ## How each button works
 
