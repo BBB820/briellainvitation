@@ -59,17 +59,34 @@
   <section id="invite" class="invite" hidden aria-labelledby="invite-heading">
     <h2 id="invite-heading" class="sr-only" tabindex="-1">Briella turns 6! You're invited.</h2>
 
-    <figure class="art">
-      <picture>
-        <source data-srcset="/assets/invitation.webp" type="image/webp" />
-        <img
-          id="art-img"
-          data-src="/assets/invitation.png"
-          width="1186" height="1327"
-          alt="Briella turns 6! Pokémon birthday invitation featuring Briella throwing a Poké Ball with Mew, Mewtwo, Dialga and Gyarados. October 28, 2026 at 2 PM, Timezone, Greenhills."
-        />
-      </picture>
-    </figure>
+    <div class="art" aria-roledescription="carousel" aria-label="Invitation">
+      <div class="art-track" id="art-track" tabindex="0" aria-label="Invitation pages, swipe to change">
+        <figure class="slide" aria-roledescription="slide" aria-label="1 of 2: cover">
+          <picture>
+            <source data-srcset="/assets/invite-cover.webp" type="image/webp" />
+            <img data-src="/assets/invite-cover.jpg" width="725" height="1145"
+              alt="Briella turns 6! Briella with Pikachu, Mewtwo, Mew, Charizard, Gardevoir and Rayquaza in front of a Pokémon Center." />
+          </picture>
+        </figure>
+        <figure class="slide" aria-roledescription="slide" aria-label="2 of 2: party details">
+          <picture>
+            <source data-srcset="/assets/invite-details.webp" type="image/webp" />
+            <img data-src="/assets/invite-details.jpg" width="632" height="1145"
+              alt="You're invited to a Pokémon birthday party! Wednesday, October 28, 2026, 2:00 PM, Timezone, Greenhills." />
+          </picture>
+        </figure>
+      </div>
+      <button class="art-nav art-prev" type="button" aria-label="Show cover" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 5.4 9 12l6.4 6.6-1.4 1.4L6.2 12 14 4z"/></svg>
+      </button>
+      <button class="art-nav art-next" type="button" aria-label="Show party details">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.6 5.4 15 12l-6.4 6.6 1.4 1.4 7.8-8L10 4z"/></svg>
+      </button>
+      <div class="art-dots">
+        <button type="button" data-go="0" aria-label="Show cover" aria-current="true"></button>
+        <button type="button" data-go="1" aria-label="Show party details"></button>
+      </div>
+    </div>
 
     <div class="panel">
       <p id="countdown" class="countdown" aria-live="polite"></p>

@@ -292,17 +292,63 @@ body.is-locked { overflow: hidden; }
 
 .art {
   position: relative;
-  margin: 0;
   width: 100%;
-  max-width: 560px;
+  max-width: 520px;
 }
-.art img {
+.art-track {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  border-radius: 14px;
+}
+.art-track::-webkit-scrollbar { display: none; }
+.art-track:focus-visible { outline: 3px solid var(--yellow); outline-offset: 4px; }
+.slide {
+  flex: 0 0 100%;
+  margin: 0;
+  display: flex; align-items: center; justify-content: center;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+}
+.slide img {
   display: block;
-  width: 100%; height: auto;
-  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, .45));
+  width: auto; height: auto;
+  max-width: 100%;
+  max-height: min(68svh, 820px);
+  border-radius: 14px;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, .9), 0 16px 34px rgba(0, 0, 0, .5);
   user-select: none;
   -webkit-user-drag: none;
 }
+.art-nav {
+  position: absolute; top: calc(50% - 14px);
+  width: 44px; height: 44px;
+  translate: 0 -50%;
+  display: grid; place-items: center;
+  border: 0; border-radius: 50%;
+  background: rgba(255, 255, 255, .92); color: var(--navy-800);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .35);
+  cursor: pointer;
+}
+.art-nav svg { width: 24px; height: 24px; fill: currentColor; }
+.art-prev { left: 4px; }
+.art-next { right: 4px; }
+.art-nav:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+.art-dots { display: flex; justify-content: center; gap: 4px; margin-top: 8px; }
+.art-dots button {
+  width: 28px; height: 28px; padding: 0;
+  border: 0; background: none; cursor: pointer;
+  display: grid; place-items: center;
+}
+.art-dots button::before {
+  content: ""; width: 9px; height: 9px; border-radius: 99px;
+  background: rgba(255, 255, 255, .4);
+  transition: width .25s ease, background-color .25s ease;
+}
+.art-dots button[aria-current="true"]::before { width: 24px; background: var(--yellow); }
+.art-dots button:focus-visible { outline: 2px solid var(--yellow); border-radius: 6px; }
 
 .panel {
   position: relative;

@@ -33,8 +33,8 @@
   const ball = $("#ball");
   const flash = $("#flash");
   const invite = $("#invite");
-  const artImg = $("#art-img");
-  const artSource = $(".art source");
+  const artTrack = $("#art-track");
+  const slides = $$(".slide", artTrack);
 
   // ---------- Toast ----------
   let toastTimer;
@@ -67,18 +67,59 @@
   }
 
   // ---------- Artwork: preload while the guest looks at the ball ----------
-  // The <img> has no src until reveal, so the artwork can't flash early.
+  // The <img>s have no src until reveal, so the artwork can't flash early.
   const supportsWebp = document.createElement("canvas").toDataURL("image/webp").startsWith("data:image/webp");
-  const artUrl = supportsWebp ? artSource.dataset.srcset : artImg.dataset.src;
-  const preload = new Image();
-  preload.decoding = "async";
-  preload.src = artUrl;
-  const artReady = (preload.decode ? preload.decode() : Promise.resolve()).catch(() => {});
+  const artReady = Promise.all(slides.map((slide) => {
+    const url = supportsWebp ? $("source", slide).dataset.srcset : $("img", slide).dataset.src;
+    const img = new Image();
+    img.decoding = "async";
+    img.src = url;
+    return (img.decode ? img.decode() : Promise.resolve()).catch(() => {});
+  }));
 
   function mountArt() {
-    if (artImg.getAttribute("src")) return;
-    artSource.srcset = artSource.dataset.srcset;
-    artImg.src = artImg.dataset.src;
+    slides.forEach((slide) => {
+      const img = $("img", slide);
+      if (img.getAttribute("src")) return;
+      const source = $("source", slide);
+      source.srcset = source.dataset.srcset;
+      img.src = img.dataset.src;
+    });
+  }
+
+  // ---------- Two-page carousel (cover → party details) ----------
+  let page = 0;
+  let touched = false;
+  const prevBtn = $(".art-prev");
+  const nextBtn = $(".art-next");
+
+  function goTo(i, smooth = true) {
+    artTrack.scrollTo({ left: i * artTrack.clientWidth, behavior: smooth && !reduceMotion() ? "smooth" : "auto" });
+  }
+  function syncPage() {
+    page = Math.round(artTrack.scrollLeft / Math.max(1, artTrack.clientWidth));
+    prevBtn.hidden = page === 0;
+    nextBtn.hidden = page === slides.length - 1;
+    $$(".art-dots button").forEach((d, i) => d.setAttribute("aria-current", String(i === page)));
+  }
+  let scrollTimer;
+  artTrack.addEventListener("scroll", () => {
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(syncPage, 60);
+  }, { passive: true });
+  ["pointerdown", "touchstart", "wheel", "keydown"].forEach((ev) =>
+    artTrack.addEventListener(ev, () => { touched = true; }, { passive: true }));
+  prevBtn.addEventListener("click", () => { touched = true; goTo(page - 1); });
+  nextBtn.addEventListener("click", () => { touched = true; goTo(page + 1); });
+  $$(".art-dots button").forEach((d) => d.addEventListener("click", () => { touched = true; goTo(Number(d.dataset.go)); }));
+  window.addEventListener("resize", () => goTo(page, false));
+
+  // After the reveal, glide to the details once unless the guest has already swiped.
+  let autoTimer;
+  function scheduleAutoAdvance() {
+    clearTimeout(autoTimer);
+    touched = false;
+    autoTimer = setTimeout(() => { if (!touched && page === 0) goTo(1); }, 3800);
   }
 
   // ---------- Opening sequence ----------
@@ -122,14 +163,18 @@
     invite.hidden = false;
     document.body.classList.add("is-revealed");
     window.scrollTo(0, 0);
+    goTo(0, false);
+    syncPage();
     if (animated) {
       invite.classList.add("is-revealing");
     }
+    scheduleAutoAdvance();
     $("#invite-heading").focus({ preventScroll: true });
   }
 
   function replay() {
     opening = false;
+    clearTimeout(autoTimer);
     invite.hidden = true;
     invite.classList.remove("is-revealing");
     document.body.classList.remove("is-revealed");

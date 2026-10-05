@@ -1,6 +1,6 @@
 # Briella Turns 6 — Interactive Invitation
 
-Mobile-first Pokémon birthday invitation. Guests see a Poké Ball first; tapping it opens the ball, flashes, and reveals the invitation artwork with RSVP, Directions, Calendar and Share buttons.
+Mobile-first Pokémon birthday invitation. Guests see a Poké Ball first; tapping it opens the ball, flashes, and reveals the two-page invitation artwork with RSVP, Directions, Calendar and Share buttons.
 
 - **Event:** Briella's 6th birthday · Wed, Oct 28, 2026 · 2:00–5:00 PM (Manila) · Timezone, Greenhills
 - **Stack:** plain HTML/CSS/JS + a zero-dependency Node server (`server.js`). No build step, no `npm install` needed.
@@ -92,9 +92,9 @@ briellainvitation/
     ├── styles.css
     ├── app.js                ← CONFIG lives here
     └── assets/
-        ├── invitation.webp           main artwork (transparent, 400 KB)
-        ├── invitation.png            fallback for old browsers
-        ├── invitation-original.png   your original upload, untouched
+        ├── invite-cover.webp/.jpg    page 1 of the invitation (cover)
+        ├── invite-details.webp/.jpg  page 2 (date, time, venue)
+        ├── invitation-original.webp  your original two-panel upload, untouched
         ├── briella-invitation.jpg    "Save image" download
         ├── og.jpg                    link-preview image
         ├── apple-touch-icon.png
@@ -103,6 +103,6 @@ briellainvitation/
 
 ## Notes
 
-- Your original PNG had a grey checkerboard baked into the pixels (fake transparency). The site uses a cleaned copy with real transparency. The untouched original is kept as `invitation-original.png`.
+- The artwork is your two-panel image split into two pages: guests see the cover first, and it glides to the details page after a few seconds (or they swipe / tap the arrows). The untouched original is kept as `invitation-original.webp`.
 - The artwork isn't attached to the page until the ball is tapped. It preloads in the background, so the reveal is instant.
 - `prefers-reduced-motion` skips the wobble, burst and flash and goes straight to the invitation.
