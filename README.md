@@ -11,7 +11,7 @@ Open `public/app.js` and check the `CONFIG` block at the top:
 
 | Setting | What to do |
 |---|---|
-| `rsvpPhone` | Put your mobile number in international format, digits only (e.g. `"639171234567"`). The **Text** and **WhatsApp** RSVP buttons then go straight to you. If you leave it blank, guests choose who to send it to. |
+| `rsvpPhone` | Set to 0917 820 2322 (`"639178202322"`). The **Text message** button sends the RSVP there. |
 | `endUtc` | The party is set to end at **5:00 PM** (`20261028T090000Z`). Change it if the party ends at a different time. Also update `DTEND` in `server.js`. |
 | `address` / `mapsQuery` | Set to *Greenhills Shopping Center, Ortigas Ave, San Juan City*. Tap **Directions** once after deploying and make sure the pin lands on the right Timezone branch. |
 
@@ -47,11 +47,31 @@ railway domain               # generate the public URL
 
 Go to **Settings → Networking → Custom Domain** and add the CNAME record Railway shows you at your DNS provider.
 
+## RSVP guest list (all responses in one place)
+
+Every RSVP is saved on the server. Open your private guest list at:
+
+```
+https://<your-railway-domain>/rsvps?key=<ADMIN_KEY>
+```
+
+It shows totals (families, kids, adults, can't make it), every response, and a
+**Download spreadsheet (CSV)** button that opens in Excel or Google Sheets.
+If a guest RSVPs again under the same name, their latest answer replaces the old one.
+
+One-time Railway setup (required):
+
+1. **Keep the list safe across redeploys:** right-click the service (or press
+   Ctrl/Cmd+K) → **Add Volume** → mount path `/data`. Without a Volume the list
+   is erased on every redeploy; the guest list page warns you if one is missing.
+2. **Set the password:** service → **Variables** → **New Variable** →
+   `ADMIN_KEY` = a password only you know. Until it's set, the guest list is locked.
+
 ## How each button works
 
 | Button | Behavior | Fallback |
 |---|---|---|
-| **RSVP** | Name, yes/no, kid and adult counts, and an optional note build a message. **Send RSVP** opens the phone's share sheet (Messenger, Viber, WhatsApp, SMS…). | **Text** (SMS), **WhatsApp**, or **Copy** to the clipboard |
+| **RSVP** | Name, yes/no, kid and adult counts, optional note. **Send RSVP** saves it to your guest list, then offers optional **Chat apps** (share sheet: WhatsApp, Messenger, Viber…) and **Text message** (SMS to the host). | If saving fails, the guest is asked to send it by chat or text instead |
 | **Directions** | Google Maps, Waze, and Apple Maps (iPhone only) | n/a |
 | **Calendar** | iPhone: Apple Calendar first (`/briella-birthday.ics`, with reminders 1 day and 2 hours before). Android: Google Calendar first. | The other option sits right below |
 | **Share** | Native share sheet with the link | Copies the link and shows a confirmation |
@@ -63,7 +83,7 @@ Link previews in Messenger, Viber and iMessage show `assets/og.jpg`. The server 
 
 ```
 briellainvitation/
-├── server.js                 static server, /health, dynamic .ics, OG origin
+├── server.js                 static server, RSVP API + guest list, /health, .ics
 ├── railway.json              Railway build/deploy config
 ├── package.json              "start": "node server.js"
 └── public/

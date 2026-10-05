@@ -455,6 +455,12 @@ body.is-revealed .rays { opacity: 1; }
 }
 .btn-ghost[hidden] { display: none; }
 
+.done-hero { text-align: center; padding: 6px 0 2px; }
+.done-emoji { font-size: 44px; line-height: 1; }
+.done-hero h4 { margin: 8px 0 4px; font-size: 24px; font-weight: 900; outline: none; }
+.done-hero p { margin: 0; color: var(--muted); font-weight: 700; }
+.done-links { display: flex; justify-content: center; align-items: center; gap: 8px; color: var(--muted); }
+.send-label em { font-style: normal; color: var(--muted); font-weight: 700; }
 .send-label { margin: 4px 0 -4px; font-weight: 800; }
 .btn-send { justify-content: flex-start; gap: 14px; padding: 12px 18px; min-height: 64px; text-align: left; }
 .btn-send svg { width: 28px; height: 28px; }

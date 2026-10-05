@@ -316,9 +316,67 @@
       : "Couldn't copy. Please long-press the message to copy it.");
   }
 
-  form.addEventListener("submit", (e) => {
+  // ---------- Save RSVP to the host's guest list ----------
+  const stepForm = $("#rsvp-step-form");
+  const stepDone = $("#rsvp-step-done");
+  const submitBtn = $("#rsvp-submit");
+  const submitErr = $("#rsvp-submit-err");
+
+  function showStep(done) {
+    stepForm.hidden = done;
+    stepDone.hidden = !done;
+    $("#dlg-rsvp").scrollTop = 0;
+  }
+
+  async function saveRsvp() {
+    const res = await fetch("/api/rsvp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: nameInput.value.trim(),
+        attending: attending() ? "yes" : "no",
+        kids: counts.kids,
+        adults: counts.adults,
+        note: $("#rsvp-note").value.trim(),
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  }
+
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    sendVia("share");
+    if (!validName()) return;
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Sending…";
+    submitErr.hidden = true;
+    const first = nameInput.value.trim().split(/\s+/)[0];
+    try {
+      await saveRsvp();
+      $("#rsvp-done-title").textContent = attending() ? `Got it, ${first}! See you there!` : `Thanks for letting us know, ${first}.`;
+      $("#rsvp-done-sub").textContent = attending()
+        ? "Briella's family has your RSVP."
+        : "Briella's family has your RSVP. You'll be missed!";
+      $("#rsvp-extra-label").innerHTML = "Want to message them too? <em>(optional)</em>";
+      $("#rsvp-done-emoji").textContent = attending() ? "🎉" : "💙";
+    } catch (err) {
+      // Saving failed: the chat/text options become the way to RSVP.
+      $("#rsvp-done-title").textContent = "Almost there!";
+      $("#rsvp-done-emoji").textContent = "📨";
+      $("#rsvp-done-sub").textContent = "We couldn't save your RSVP online. Please send it by chat or text below.";
+      $("#rsvp-extra-label").textContent = "Send your RSVP by…";
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Send RSVP";
+    }
+    renderRsvp();
+    showStep(true);
+    $("#rsvp-done-title").focus({ preventScroll: true });
+  });
+
+  $("#rsvp-edit").addEventListener("click", () => {
+    showStep(false);
+    nameInput.focus();
   });
   if (CONFIG.rsvpPhone) {
     const local = "0" + CONFIG.rsvpPhone.slice(2);
@@ -327,6 +385,7 @@
   $$("[data-rsvp]").forEach((b) => b.addEventListener("click", () => sendVia(b.dataset.rsvp)));
 
   $("#btn-rsvp").addEventListener("click", () => {
+    showStep(false);
     renderRsvp();
     openSheet($("#dlg-rsvp"));
   });
