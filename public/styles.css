@@ -455,6 +455,15 @@ body.is-revealed .rays { opacity: 1; }
 }
 .btn-ghost[hidden] { display: none; }
 
+.send-label { margin: 4px 0 -4px; font-weight: 800; }
+.btn-send { justify-content: flex-start; gap: 14px; padding: 12px 18px; min-height: 64px; text-align: left; }
+.btn-send svg { width: 28px; height: 28px; }
+.btn-text { display: flex; flex-direction: column; line-height: 1.15; }
+.btn-text small { font-size: 13.5px; font-weight: 700; opacity: .85; margin-top: 3px; }
+.btn-secondary.btn-send { border: 2px solid #d5dbea; box-shadow: 0 3px 0 #c9d1e4; }
+.btn-secondary.btn-send svg { color: var(--blue); }
+.link--dark { align-self: center; color: var(--muted); }
+
 .field { display: flex; flex-direction: column; gap: 6px; font-weight: 800; }
 .field em { font-style: normal; color: var(--muted); font-weight: 700; }
 .field input, .field textarea {

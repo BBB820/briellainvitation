@@ -10,7 +10,6 @@
     celebrant: "Briella",
     title: "Briella's 6th Birthday Party",
     rsvpPhone: "639178202322", // 0917 820 2322: Text RSVPs go here
-    whatsappPhone: "",          // blank: guests pick the WhatsApp chat
     venue: "Timezone, Greenhills",
     address: "Greenhills Shopping Center, Ortigas Ave, San Juan City, Metro Manila",
     mapsQuery: "Timezone Greenhills, San Juan City, Metro Manila",
@@ -294,13 +293,13 @@
     const sep = isIOS ? "&" : "?";
     return `sms:${CONFIG.rsvpPhone ? "+" + CONFIG.rsvpPhone : ""}${sep}body=${encodeURIComponent(text)}`;
   }
-  function waLink(text) {
-    return `https://wa.me/${CONFIG.whatsappPhone}?text=${encodeURIComponent(text)}`;
-  }
 
+  // "share" = chat apps (WhatsApp, Messenger, Viber…) via the phone's share
+  // sheet; "sms" = text message to CONFIG.rsvpPhone; "copy" = clipboard.
   async function sendVia(channel) {
     if (!validName()) return;
     const text = rsvpMessage();
+    if (channel === "sms") { location.href = smsLink(text); return; }
     if (channel === "share" && navigator.share) {
       try {
         await navigator.share({ text });
@@ -309,19 +308,22 @@
       } catch (err) {
         if (err && err.name === "AbortError") return;
       }
-      channel = "copy";
     }
-    if (channel === "share") channel = CONFIG.rsvpPhone ? "sms" : "copy";
-    if (channel === "sms") { location.href = smsLink(text); return; }
-    if (channel === "whatsapp") { window.open(waLink(text), "_blank", "noopener"); return; }
+    // No share sheet (e.g. desktop browsers): copy so they can paste it.
     const ok = await copyText(text);
-    toast(ok ? "RSVP copied — paste it in your chat with Briella's family." : "Couldn't copy. Please long-press the message to copy it.");
+    toast(ok
+      ? "RSVP copied — paste it in WhatsApp, Messenger or Viber."
+      : "Couldn't copy. Please long-press the message to copy it.");
   }
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     sendVia("share");
   });
+  if (CONFIG.rsvpPhone) {
+    const local = "0" + CONFIG.rsvpPhone.slice(2);
+    $("#rsvp-sms-to").textContent = `SMS to ${local.slice(0, 4)} ${local.slice(4, 7)} ${local.slice(7)}`;
+  }
   $$("[data-rsvp]").forEach((b) => b.addEventListener("click", () => sendVia(b.dataset.rsvp)));
 
   $("#btn-rsvp").addEventListener("click", () => {
