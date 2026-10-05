@@ -33,9 +33,27 @@ const TYPES = {
   ".ics": "text/calendar; charset=utf-8",
 };
 
+// Every /assets/ reference in the HTML and CSS gets ?v=<content hash>, so a
+// replaced image (same file name) is fetched fresh instead of served from a
+// phone's week-long cache.
+function assetVersion(rel) {
+  try {
+    return crypto.createHash("sha1").update(fs.readFileSync(path.join(ROOT, rel))).digest("hex").slice(0, 10);
+  } catch {
+    return null;
+  }
+}
+function versionAssets(text) {
+  return text.replace(/\/assets\/[\w./-]+\.(?:jpg|jpeg|png|webp|woff2|svg)/g, (ref) => {
+    const v = assetVersion(ref.slice(1));
+    return v ? `${ref}?v=${v}` : ref;
+  });
+}
+
 // index.html is read once; {{ORIGIN}} is filled per request so link-preview
 // tags (og:image, og:url) are absolute on whatever domain Railway assigns.
-const indexTemplate = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+const indexTemplate = versionAssets(fs.readFileSync(path.join(ROOT, "index.html"), "utf8"));
+const stylesCss = versionAssets(fs.readFileSync(path.join(ROOT, "styles.css"), "utf8"));
 
 function originOf(req) {
   const proto = (req.headers["x-forwarded-proto"] || "http").split(",")[0].trim();
@@ -372,6 +390,11 @@ const server = http.createServer((req, res) => {
     return res.end(calendarFile(originOf(req)));
   }
 
+  if (pathname === "/styles.css") {
+    res.writeHead(200, { "Content-Type": TYPES[".css"], "Cache-Control": "no-cache" });
+    return res.end(stylesCss);
+  }
+
   if (pathname === "/" || pathname === "/index.html") {
     res.writeHead(200, {
       "Content-Type": TYPES[".html"],
@@ -397,8 +420,8 @@ const server = http.createServer((req, res) => {
       "Content-Type": TYPES[ext] || "application/octet-stream",
       "Content-Length": stat.size,
       "Cache-Control": pathname.startsWith("/assets/")
-        ? "public, max-age=604800"
-        : "public, max-age=300",
+        ? (url.searchParams.has("v") ? "public, max-age=31536000, immutable" : "no-cache")
+        : "no-cache",
     });
     if (req.method === "HEAD") return res.end();
     fs.createReadStream(filePath).pipe(res);
