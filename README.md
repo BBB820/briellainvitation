@@ -70,14 +70,18 @@ One-time Railway setup:
 
 ## Sound
 
-Tapping the cover plays an original, synthesised opening sound (button click,
-rising whoosh, pop + sparkles at the flash, short victory jingle). On the RSVP
-page an original 8-bit background loop plays quietly (stops on "Back to cover",
-when the tab is hidden, or when muted); the RSVP form adds a blip on open and a
-success chime when an RSVP is saved. It's generated
-in the browser by `Sfx` in `app.js`, so there are no audio files and no copyrighted
-music. The speaker button (top-right) mutes it and the choice is remembered.
-On iPhone, sound only plays when the ring/silent switch is not on silent.
+All sound is synthesised in the browser (`Sfx` in `app.js`) in the style of
+Game Boy-era music: pulse-wave leads with harmony and vibrato, octave-bounce
+bass, noise drums, light echo. Every melody is an original composition; no
+game soundtrack is copied and there are no audio files.
+
+- **Opening (tap):** menu "bip-bip", rising Poké Ball-release arpeggio, pop at
+  the flash, short "item get"-style fanfare.
+- **RSVP page:** original adventure-route theme at 150 bpm (fanfare intro, then
+  a 16-bar loop). Stops on "Back to cover" or mute, pauses when the tab is hidden.
+- **RSVP form:** A-button select sound on open, level-up style chime on save.
+- The speaker button (top-right) mutes everything; the choice is remembered.
+  On iPhone, nothing plays while the ring/silent switch is on silent.
 
 ## How each button works
 

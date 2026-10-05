@@ -29,12 +29,19 @@
   const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  // ---------- Sound effects (synthesised: no audio files, nothing copyrighted) ----------
+  // ---------- Sound (synthesised in the style of Game Boy-era music) ----------
+  // Pulse-wave leads, wave-channel bass and noise drums, like the original
+  // handheld sound chip. All melodies are original compositions; nothing is
+  // copied from any game soundtrack.
   const Sfx = (() => {
     let ctx = null;
     let master = null;
     let muted = false;
+    const LEVEL = 0.9;
     try { muted = localStorage.getItem("briella-muted") === "1"; } catch { /* private mode */ }
+
+    const waves = {};
+    let noiseBuf = null;
 
     function audio() {
       if (!ctx) {
@@ -42,132 +49,198 @@
         if (!Ctx) return null;
         ctx = new Ctx();
         master = ctx.createGain();
-        master.gain.value = 1.6;
-        master.connect(ctx.destination);
+        master.gain.value = LEVEL;
+        const comp = ctx.createDynamicsCompressor();
+        comp.threshold.value = -14;
+        comp.ratio.value = 3;
+        master.connect(comp).connect(ctx.destination);
+        // Pulse waves at the chip's duty cycles (12.5%, 25%, 50%).
+        [0.125, 0.25, 0.5].forEach((duty) => {
+          const n = 48;
+          const real = new Float32Array(n);
+          const imag = new Float32Array(n);
+          for (let k = 1; k < n; k++) real[k] = (4 / (k * Math.PI)) * Math.sin(k * Math.PI * duty);
+          waves[duty] = ctx.createPeriodicWave(real, imag);
+        });
+        noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+        const d = noiseBuf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
       }
       if (ctx.state === "suspended") ctx.resume();
       return ctx;
     }
 
-    function tone(freq, at, dur, { type = "square", vol = 0.15, slideTo } = {}) {
+    const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+
+    // One chip voice. `wave` is a duty (0.125/0.25/0.5) or an oscillator type.
+    function note(dest, freq, at, dur, { wave = 0.25, vol = 0.1, slideTo, vibrato = false, release = 0.03 } = {}) {
       const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.type = type;
+      if (typeof wave === "number") o.setPeriodicWave(waves[wave]); else o.type = wave;
       o.frequency.setValueAtTime(freq, at);
       if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, at + dur);
-      g.gain.setValueAtTime(0.0001, at);
-      g.gain.exponentialRampToValueAtTime(vol, at + 0.012);
-      g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
-      o.connect(g).connect(master);
-      o.start(at);
-      o.stop(at + dur + 0.05);
-    }
-
-    function whoosh(at, dur, { from = 300, to = 5000, vol = 0.2, swell = true } = {}) {
-      const len = Math.ceil(ctx.sampleRate * dur);
-      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-      const data = buf.getChannelData(0);
-      for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      const f = ctx.createBiquadFilter();
-      f.type = "bandpass";
-      f.Q.value = 1.2;
-      f.frequency.setValueAtTime(from, at);
-      f.frequency.exponentialRampToValueAtTime(to, at + dur);
+      if (vibrato && dur > 0.28) {
+        const lfo = ctx.createOscillator();
+        const depth = ctx.createGain();
+        lfo.frequency.value = 5.6;
+        depth.gain.setValueAtTime(0, at);
+        depth.gain.linearRampToValueAtTime(freq * 0.012, at + 0.22);
+        lfo.connect(depth).connect(o.frequency);
+        lfo.start(at);
+        lfo.stop(at + dur + release);
+      }
       const g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, at);
-      g.gain.exponentialRampToValueAtTime(vol, at + (swell ? dur * 0.85 : 0.02));
-      g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
-      src.connect(f).connect(g).connect(master);
-      src.start(at);
-      src.stop(at + dur);
+      g.gain.setValueAtTime(vol, at);
+      g.gain.setValueAtTime(vol, at + Math.max(0.005, dur - release));
+      g.gain.linearRampToValueAtTime(0.0001, at + dur);
+      o.connect(g).connect(dest);
+      o.start(at);
+      o.stop(at + dur + 0.02);
     }
 
-    // ---- Background music for the RSVP page: an original 8-bar chiptune loop
-    // (I–vi–IV–V in C, 120 bpm, eighth-note grid), scheduled just ahead of time.
-    const STEP = 0.25; // one eighth note at 120 bpm
-    const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
-    const MELODY = [
-      76, 79, 84, 79, 76, 74, 72, 0,   69, 72, 76, 72, 74, 76, 0, 0,
-      77, 76, 74, 72, 69, 72, 74, 0,   74, 79, 77, 76, 74, 71, 67, 0,
-      72, 76, 79, 84, 83, 84, 79, 0,   81, 79, 76, 79, 81, 84, 0, 0,
-      77, 81, 84, 81, 79, 77, 76, 74,  79, 77, 76, 74, 71, 74, 79, 0,
+    function noise(dest, at, dur, { vol = 0.1, type = "highpass", freq = 6000, q = 0.7, sweepTo } = {}) {
+      const src = ctx.createBufferSource();
+      src.buffer = noiseBuf;
+      const f = ctx.createBiquadFilter();
+      f.type = type;
+      f.frequency.setValueAtTime(freq, at);
+      if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, at + dur);
+      f.Q.value = q;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(vol, at);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+      src.connect(f).connect(g).connect(dest);
+      src.start(at, Math.random() * 0.5);
+      src.stop(at + dur + 0.02);
+    }
+
+    const kick = (dest, at) => {
+      note(dest, 150, at, 0.12, { wave: "sine", vol: 0.5, slideTo: 45, release: 0.08 });
+      noise(dest, at, 0.03, { vol: 0.12, type: "lowpass", freq: 1500 });
+    };
+    const snare = (dest, at, vol = 0.2) => {
+      noise(dest, at, 0.13, { vol, type: "bandpass", freq: 2600, q: 0.6 });
+      note(dest, 220, at, 0.06, { wave: "triangle", vol: 0.12, slideTo: 140 });
+    };
+    const hat = (dest, at, vol = 0.05) => noise(dest, at, 0.035, { vol, freq: 8000 });
+
+    // ---------------- Music: original adventure-route theme ----------------
+    const STEP = 60 / 150 / 4;          // 16th note at 150 bpm
+    // [step, midi, length in steps] per bar (16 steps).
+    const A = [
+      [[0, 67, 2], [2, 72, 2], [4, 76, 2], [6, 79, 6], [12, 76, 2], [14, 79, 2]],
+      [[0, 77, 4], [4, 74, 2], [6, 77, 2], [8, 82, 6], [14, 81, 2]],
+      [[0, 81, 4], [4, 79, 2], [6, 77, 2], [8, 76, 4], [12, 77, 2], [14, 79, 2]],
+      [[0, 79, 6], [6, 76, 2], [8, 74, 6], [14, 71, 2]],
+      [[0, 67, 2], [2, 72, 2], [4, 76, 2], [6, 79, 4], [10, 84, 4], [14, 83, 2]],
+      [[0, 82, 6], [6, 81, 2], [8, 79, 4], [12, 77, 4]],
+      [[0, 77, 2], [2, 79, 2], [4, 81, 4], [8, 84, 4], [12, 81, 2], [14, 79, 2]],
+      [[0, 79, 8], [8, 74, 2], [10, 79, 2], [12, 83, 4]],
     ];
-    const ROOTS = [48, 45, 41, 43, 48, 45, 41, 43]; // C Am F G ×2
+    const B = [
+      [[0, 76, 4], [4, 72, 2], [6, 76, 2], [8, 81, 6], [14, 79, 2]],
+      [[0, 77, 4], [4, 81, 4], [8, 84, 6], [14, 81, 2]],
+      [[0, 83, 4], [4, 79, 2], [6, 83, 2], [8, 86, 4], [12, 83, 2], [14, 79, 2]],
+      [[0, 84, 8], [8, 79, 4], [12, 76, 4]],
+      [[0, 81, 2], [2, 84, 2], [4, 81, 2], [6, 76, 2], [8, 72, 4], [12, 76, 4]],
+      [[0, 77, 2], [2, 81, 2], [4, 84, 2], [6, 81, 2], [8, 84, 4], [12, 86, 4]],
+      [[0, 86, 4], [4, 83, 4], [8, 79, 4], [12, 74, 2], [14, 79, 2]],
+      [[0, 77, 2], [2, 79, 2], [4, 83, 2], [6, 86, 2], [8, 83, 4], [12, 79, 4]],
+    ];
+    const SONG = [...A, ...B];
+    // Chord root per bar (bass), and whether the bar uses B-flat (for harmony).
+    const ROOTS = [36, 34, 41, 43, 36, 34, 41, 43, 33, 41, 43, 36, 33, 41, 43, 43];
+    const FLAT_B = [0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+    // Diatonic third below (C major / C mixolydian on B-flat bars).
+    function thirdBelow(m, flatB) {
+      const scale = flatB ? [0, 2, 4, 5, 7, 9, 10] : [0, 2, 4, 5, 7, 9, 11];
+      const pc = ((m % 12) + 12) % 12;
+      let i = scale.indexOf(pc);
+      if (i < 0) return m - 3;
+      const j = (i + 5) % 7;
+      let down = pc - scale[j];
+      if (down <= 0) down += 12;
+      return m - down;
+    }
+
     let bus = null;
     let musicOn = false;
     let nextAt = 0;
     let step = 0;
     let timer = null;
 
+    function scheduleBar(bar, at, intro) {
+      const melody = intro
+        ? [[0, 72, 1], [1, 76, 1], [2, 79, 1], [3, 84, 5], [8, 82, 2], [10, 84, 6]]
+        : SONG[bar];
+      const root = intro ? 36 : ROOTS[bar];
+      const flat = intro ? 0 : FLAT_B[bar];
+      melody.forEach(([s, m, len]) => {
+        const t = at + s * STEP;
+        const d = len * STEP;
+        note(bus, hz(m), t, d * 0.94, { wave: 0.25, vol: 0.085, vibrato: true });
+        note(bus, hz(thirdBelow(m, flat)), t, d * 0.9, { wave: 0.125, vol: 0.045 });
+      });
+      for (let s = 0; s < 16; s += 2) {                 // octave-bounce bass
+        const m = root + (s % 4 === 2 ? 12 : 0);
+        note(bus, hz(m), at + s * STEP, STEP * 1.8, { wave: "triangle", vol: 0.24 });
+      }
+      for (let s = 0; s < 16; s++) {                    // drums
+        const t = at + s * STEP;
+        if (s === 0 || s === 8 || (s === 10 && bar % 2)) kick(bus, t);
+        if (s === 4 || s === 12) snare(bus, t);
+        if (s % 2 === 0) hat(bus, t, s % 4 === 2 ? 0.06 : 0.035);
+      }
+      if (intro) [12, 13, 14, 15].forEach((s, i) => snare(bus, at + s * STEP, 0.08 + i * 0.04));
+      else if (bar === 7 || bar === 15) [14, 15].forEach((s) => snare(bus, at + s * STEP, 0.14));
+    }
+
     function schedule() {
-      while (nextAt < ctx.currentTime + 0.12) {
-        const bar = Math.floor(step / 8) % 8;
-        const beat = step % 8;
-        const note = MELODY[step % 64];
-        if (note) voice(midi(note), nextAt, STEP * 0.9, "square", 0.05);
-        const root = ROOTS[bar];
-        if (beat % 2 === 0) voice(midi(beat % 4 === 0 ? root : root + 7), nextAt, STEP * 1.6, "triangle", 0.11);
-        else hat(nextAt);
-        if (beat === 0) [0, 4, 7].forEach((i) => voice(midi(root + 24 + i), nextAt, STEP * 3.5, "sine", 0.018));
-        nextAt += STEP;
+      while (nextAt < ctx.currentTime + 0.25) {
+        if (step === 0) scheduleBar(0, nextAt, true);
+        else scheduleBar((step - 1) % SONG.length, nextAt, false);
+        nextAt += 16 * STEP;
         step++;
       }
     }
-    function voice(freq, at, dur, type, vol) {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.type = type;
-      o.frequency.setValueAtTime(freq, at);
-      g.gain.setValueAtTime(0.0001, at);
-      g.gain.exponentialRampToValueAtTime(vol, at + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
-      o.connect(g).connect(bus);
-      o.start(at);
-      o.stop(at + dur + 0.05);
-    }
-    let hatBuf = null;
-    function hat(at) {
-      if (!hatBuf) {
-        hatBuf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.05), ctx.sampleRate);
-        const d = hatBuf.getChannelData(0);
-        for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
-      }
-      const src = ctx.createBufferSource();
-      src.buffer = hatBuf;
-      const f = ctx.createBiquadFilter();
-      f.type = "highpass";
-      f.frequency.value = 7000;
-      const g = ctx.createGain();
-      g.gain.value = 0.025;
-      src.connect(f).connect(g).connect(bus);
-      src.start(at);
-    }
+
     function startMusic(delay = 0) {
       if (musicOn || muted || !audio()) return;
       musicOn = true;
       bus = ctx.createGain();
+      // light echo, like the stereo-delay trick on the handheld
+      const echo = ctx.createDelay(1);
+      echo.delayTime.value = STEP * 3;
+      const fb = ctx.createGain();
+      fb.gain.value = 0.22;
+      const wet = ctx.createGain();
+      wet.gain.value = 0.18;
       bus.connect(master);
+      bus.connect(echo);
+      echo.connect(fb).connect(echo);
+      echo.connect(wet).connect(master);
       const t = ctx.currentTime + delay;
       bus.gain.setValueAtTime(0.0001, ctx.currentTime);
       bus.gain.setValueAtTime(0.0001, t);
-      bus.gain.exponentialRampToValueAtTime(1, t + 1.2);
+      bus.gain.linearRampToValueAtTime(0.5, t + 0.4);
       nextAt = t;
       step = 0;
-      timer = setInterval(schedule, 25);
+      timer = setInterval(schedule, 40);
       schedule();
+      bus._echo = [echo, fb, wet];
     }
+
     function stopMusic() {
       if (!musicOn) return;
       musicOn = false;
       clearInterval(timer);
       const old = bus;
       old.gain.cancelScheduledValues(ctx.currentTime);
-      old.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.15);
-      setTimeout(() => old.disconnect(), 800);
+      old.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.12);
+      setTimeout(() => { old.disconnect(); old._echo.forEach((n) => n.disconnect()); }, 900);
     }
-    // Don't play in a background tab or a locked phone.
+
+    // Don't play in a background tab or on a locked phone.
     document.addEventListener("visibilitychange", () => {
       if (!ctx) return;
       if (document.hidden) ctx.suspend();
@@ -176,53 +249,68 @@
 
     return {
       get muted() { return muted; },
+      get musicOn() { return musicOn; },
       setMuted(m) {
         muted = m;
         try { localStorage.setItem("briella-muted", m ? "1" : "0"); } catch { /* ignore */ }
-        if (master) master.gain.setTargetAtTime(m ? 0 : 1.6, ctx.currentTime, 0.02);
+        if (master) master.gain.setTargetAtTime(m ? 0 : LEVEL, ctx.currentTime, 0.02);
         if (m) stopMusic();
       },
       startMusic,
       stopMusic,
-      get musicOn() { return musicOn; },
-      // Soft blip when the RSVP form opens.
-      blip() {
-        if (muted || !audio()) return;
-        const t = ctx.currentTime + 0.01;
-        tone(880, t, 0.07, { type: "triangle", vol: 0.12 });
-        tone(1320, t + 0.06, 0.09, { type: "triangle", vol: 0.1 });
-      },
-      // Little fanfare when an RSVP is saved.
-      success() {
-        if (muted || !audio()) return;
-        const t = ctx.currentTime + 0.02;
-        [[784, 0], [988, 0.09], [1175, 0.18], [1568, 0.27]].forEach(([f, o]) =>
-          tone(f, t + o, o === 0.27 ? 0.45 : 0.1, { vol: 0.09 }));
-        [2637, 3136, 3951].forEach((f, i) => tone(f, t + 0.32 + i * 0.05, 0.3, { type: "sine", vol: 0.05 }));
-      },
-      // Timed to the opening animation: press → burst (~0.18s) → flash (~0.7s) → reveal.
+
+      // Timed to the opening: press → burst (~0.18s) → flash (~0.7s) → reveal.
       open(short) {
         if (muted || !audio()) return;
         const t = ctx.currentTime + 0.02;
-        tone(1900, t, 0.035, { vol: 0.1 });                      // button click
-        tone(950, t + 0.03, 0.05, { vol: 0.08 });
+        // menu "bip-bip"
+        note(master, hz(91), t, 0.05, { wave: 0.5, vol: 0.12 });
+        note(master, hz(96), t + 0.06, 0.07, { wave: 0.5, vol: 0.12 });
+        let p = t + 0.14;
         if (!short) {
-          whoosh(t + 0.16, 0.56, { from: 260, to: 5200, vol: 0.2 }); // rising whoosh
-          tone(196, t + 0.16, 0.56, { type: "sawtooth", vol: 0.035, slideTo: 880 });
+          // Poké Ball release: fast rising arpeggio sweep with sparkle
+          const run = [60, 64, 67, 72, 76, 79, 84, 88, 91, 96];
+          run.forEach((m, i) => note(master, hz(m), p + i * 0.045, 0.06, { wave: 0.125, vol: 0.1 }));
+          note(master, hz(48), p, 0.5, { wave: 0.5, vol: 0.05, slideTo: hz(84) });
+          noise(master, p, 0.5, { vol: 0.08, type: "bandpass", freq: 800, sweepTo: 9000, q: 1.5 });
+          p = t + 0.72;
         }
-        const p = t + (short ? 0.08 : 0.72);
-        tone(1320, p, 0.28, { type: "triangle", vol: 0.22, slideTo: 330 }); // pop
-        whoosh(p, 0.4, { from: 7000, to: 1400, vol: 0.14, swell: false });
-        [2093, 2637, 3136, 4186, 3520].forEach((f, i) =>             // sparkles
-          tone(f, p + 0.07 + i * 0.055, 0.32, { type: "sine", vol: 0.07 }));
-        // Short original victory jingle.
-        const j = p + 0.34;
-        [[523, 0, 0.1], [659, 0.11, 0.1], [784, 0.22, 0.1], [1047, 0.33, 0.16],
-         [880, 0.52, 0.1], [988, 0.63, 0.1], [1047, 0.74, 0.5]].forEach(([f, o, d]) =>
-          tone(f, j + o, d, { vol: 0.085 }));
-        tone(262, j, 0.42, { type: "triangle", vol: 0.13 });
-        tone(349, j + 0.52, 0.2, { type: "triangle", vol: 0.12 });
-        tone(392, j + 0.74, 0.55, { type: "triangle", vol: 0.13 });
+        // pop at the flash
+        noise(master, p, 0.3, { vol: 0.22, type: "lowpass", freq: 9000, sweepTo: 600 });
+        note(master, hz(84), p, 0.22, { wave: 0.25, vol: 0.12, slideTo: hz(60) });
+        [96, 100, 103, 108].forEach((m, i) => note(master, hz(m), p + 0.05 + i * 0.04, 0.12, { wave: "sine", vol: 0.06 }));
+        // "item get"-style fanfare (original)
+        const f = p + 0.3;
+        const S = 0.11;
+        [[72, 0, 1], [72, 1, 1], [72, 2, 1], [76, 3, 3], [74, 6, 1], [76, 7, 1], [79, 8, 6]].forEach(([m, s, l]) => {
+          note(master, hz(m), f + s * S, l * S * 0.92, { wave: 0.25, vol: 0.1, vibrato: l > 2 });
+          note(master, hz(m - (m === 79 ? 3 : 4)), f + s * S, l * S * 0.9, { wave: 0.125, vol: 0.05 });
+        });
+        [[48, 0, 3], [53, 3, 3], [55, 6, 2], [48, 8, 6]].forEach(([m, s, l]) =>
+          note(master, hz(m), f + s * S, l * S * 0.95, { wave: "triangle", vol: 0.22 }));
+        snare(master, f + 8 * S, 0.12);
+        kick(master, f + 8 * S);
+      },
+
+      // A-button style select sound (RSVP form opens).
+      blip() {
+        if (muted || !audio()) return;
+        const t = ctx.currentTime + 0.01;
+        note(master, hz(88), t, 0.045, { wave: 0.5, vol: 0.11 });
+        note(master, hz(95), t + 0.05, 0.06, { wave: 0.5, vol: 0.11 });
+      },
+
+      // Level-up style chime (RSVP saved).
+      success() {
+        if (muted || !audio()) return;
+        const t = ctx.currentTime + 0.02;
+        const S = 0.085;
+        [[79, 0, 1], [83, 1, 1], [86, 2, 1], [91, 3, 2], [88, 5, 1], [91, 6, 5]].forEach(([m, s, l]) => {
+          note(master, hz(m), t + s * S, l * S * 0.92, { wave: 0.25, vol: 0.1, vibrato: l > 2 });
+          note(master, hz(m - 4), t + s * S, l * S * 0.9, { wave: 0.125, vol: 0.045 });
+        });
+        note(master, hz(55), t, 3 * S, { wave: "triangle", vol: 0.2 });
+        note(master, hz(43), t + 3 * S, 8 * S, { wave: "triangle", vol: 0.2 });
       },
     };
   })();
@@ -325,7 +413,7 @@
     if (reduceMotion()) {
       await Promise.race([artReady, wait(2500)]);
       showInvite(false);
-      Sfx.startMusic(1.4);
+      Sfx.startMusic(1.9);
       return;
     }
 
@@ -344,7 +432,7 @@
     showInvite(true);
     flash.classList.remove("is-on");
     flash.classList.add("is-off");
-    Sfx.startMusic(1.5); // after the opening jingle finishes
+    Sfx.startMusic(1.75); // right after the opening fanfare
   }
 
   function showInvite(animated) {
