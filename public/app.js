@@ -227,26 +227,6 @@
   }
   $("#btn-cal").addEventListener("click", () => openSheet($("#dlg-cal")));
 
-  // ---------- Share ----------
-  $("#btn-share").addEventListener("click", async () => {
-    const url = `${location.origin}/`;
-    const data = {
-      title: "Briella Turns 6!",
-      text: `You're invited to Briella's Pokémon birthday party! ${CONFIG.dateLabel} at ${CONFIG.venue}. Tap the Poké Ball to open:`,
-      url,
-    };
-    if (navigator.share) {
-      try {
-        await navigator.share(data);
-        return;
-      } catch (err) {
-        if (err && err.name === "AbortError") return; // guest cancelled
-      }
-    }
-    const ok = await copyText(`${data.text} ${url}`);
-    toast(ok ? "Invitation link copied — paste it anywhere!" : url);
-  });
-
   // ---------- RSVP ----------
   const form = $("#rsvp-form");
   const nameInput = $("#rsvp-name");

@@ -123,27 +123,45 @@ body.is-locked { overflow: hidden; }
   max-height: 100vh;
   max-height: 100dvh;
   box-shadow: 0 0 60px rgba(0, 0, 0, .6);
-  transform-origin: 30.8% 91.9%;
+  transform-origin: 40% 91%;
   transition: transform .85s cubic-bezier(.5, 0, .3, 1), filter .4s ease;
 }
 @media (min-width: 600px) { .cover img { border-radius: 18px; } }
 
-/* Glowing ring over the artwork's "TAP TO OPEN" button. */
-.cover-pulse {
-  position: absolute;
-  left: 24.3%; top: 87.8%; width: 55.5%; height: 8.5%;
+/* "TAP TO OPEN" button drawn over the rocks at the bottom of the cover. */
+.tap-pill {
+  position: absolute; left: 50%; bottom: 2.4%;
+  translate: -50% 0;
+  display: inline-flex; align-items: center; gap: .55em;
+  padding: .42em 1.1em .42em .42em;
   border-radius: 999px;
-  animation: ring 1.8s ease-out infinite;
-  transition: background-color .15s ease, box-shadow .15s ease;
+  background: linear-gradient(180deg, #fffdf6, #f6efdc);
+  border: .16em solid var(--navy-900);
+  color: var(--navy-800);
+  font-family: var(--ui); font-weight: 900;
+  font-size: clamp(17px, 5.4vw, 26px);
+  letter-spacing: .03em; line-height: 1;
+  text-transform: uppercase; white-space: nowrap;
+  box-shadow: 0 0 0 .14em #ffd34d, 0 0 22px 6px rgba(255, 205, 60, .7), 0 8px 18px rgba(0, 0, 0, .45);
+  animation: glow 1.8s ease-in-out infinite;
+  transition: transform .15s ease, box-shadow .15s ease, opacity .3s ease;
 }
-@keyframes ring {
-  0% { box-shadow: 0 0 0 0 rgba(255, 214, 90, .8); }
-  75%, 100% { box-shadow: 0 0 0 16px rgba(255, 214, 90, 0); }
+@keyframes glow {
+  50% { box-shadow: 0 0 0 .14em #ffe27a, 0 0 34px 12px rgba(255, 215, 80, .9), 0 8px 18px rgba(0, 0, 0, .45); }
+}
+.tap-ball {
+  position: relative;
+  width: 1.75em; height: 1.75em; flex: none;
+  border-radius: 50%;
+  border: .12em solid var(--navy-900);
+  background:
+    radial-gradient(circle at 50% 50%, #fff 0 .2em, var(--navy-900) .2em .32em, transparent .32em),
+    linear-gradient(180deg, #ef2b33 0 45%, var(--navy-900) 45% 55%, #fff 55% 100%);
 }
 .cover-burst {
   position: absolute;
-  left: 30.8%; top: 91.9%;
-  width: 7%; aspect-ratio: 1;
+  left: 50%; top: 50%;
+  width: 100%; aspect-ratio: 1;
   translate: -50% -50%;
   border-radius: 50%;
   background: radial-gradient(circle, #fff 0%, #fff7c2 35%, rgba(255, 220, 90, 0) 70%);
@@ -154,7 +172,7 @@ body.is-locked { overflow: hidden; }
 /* Phones (screen narrower than the art): the cover fills the screen edge to
    edge and the artwork continues above/below via cover-ext (same art with
    painted extensions, centred so the two line up exactly). */
-@media (max-aspect-ratio: 708/1145) {
+@media (max-aspect-ratio: 685/1145) {
   .intro { height: 100vh; height: 100dvh; min-height: 0; }
   .cover-bg {
     position: absolute; inset: 0;
@@ -171,18 +189,19 @@ body.is-locked { overflow: hidden; }
 }
 
 /* Opening sequence: classes are added in order by app.js */
-.cover.is-pressed .cover-pulse {
+.cover:hover .tap-pill { transform: scale(1.04); }
+.cover.is-pressed .tap-pill {
   animation: none;
-  background: rgba(255, 255, 255, .28);
-  box-shadow: 0 0 0 4px rgba(255, 230, 140, .95), 0 0 30px 10px rgba(255, 220, 90, .8);
+  transform: scale(.94);
+  box-shadow: 0 0 0 .14em #fff1b0, 0 0 40px 16px rgba(255, 225, 110, 1), 0 4px 10px rgba(0, 0, 0, .4);
 }
 .cover.is-open img { transform: scale(1.18); filter: brightness(1.15); }
-.cover.is-open .cover-pulse { opacity: 0; }
+.cover.is-open .tap-pill { animation: none; background: #fffbe8; }
 .cover.is-open .cover-burst { animation: burst .8s cubic-bezier(.3, .7, .2, 1) forwards; }
 @keyframes burst {
   0% { opacity: 0; transform: scale(0); }
   20% { opacity: 1; }
-  100% { opacity: 1; transform: scale(40); }
+  100% { opacity: 1; transform: scale(60); }
 }
 
 /* ---------- Flash ---------- */
@@ -348,6 +367,7 @@ body.is-revealed .rays { opacity: 1; }
 }
 
 .btn-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.panel .btn-row { grid-template-columns: repeat(2, 1fr); }
 
 .btn-tile {
   flex-direction: column; gap: 6px;
@@ -534,6 +554,6 @@ body.is-revealed .rays { opacity: 1; }
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
   }
-  .stars, .sky-ball, .rays, .cover-pulse, .scroll-cue { animation: none !important; }
+  .stars, .sky-ball, .rays, .tap-pill, .scroll-cue { animation: none !important; }
   .flash { display: none; }
 }

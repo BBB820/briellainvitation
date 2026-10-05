@@ -1,6 +1,6 @@
 # Briella Turns 6 — Interactive Invitation
 
-Mobile-first Pokémon birthday invitation. Guests see the cover artwork first; tapping it ("TAP TO OPEN") bursts light from the cover's Poké Ball, flashes, and reveals the details page with RSVP, Directions, Calendar and Share buttons.
+Mobile-first Pokémon birthday invitation. Guests see the cover artwork first; tapping it (glowing "Tap to open" button) bursts light from the button's Poké Ball, flashes, and reveals the details page with RSVP, Directions and Calendar buttons.
 
 - **Event:** Briella's 6th birthday · Wed, Oct 28, 2026 · 2:00–5:00 PM (Manila) · Timezone, Greenhills
 - **Stack:** plain HTML/CSS/JS + a zero-dependency Node server (`server.js`). No build step, no `npm install` needed.
@@ -75,7 +75,6 @@ One-time Railway setup:
 | **RSVP** | Name, yes/no, kid and adult counts, optional note. **Send RSVP** saves it to your guest list, then offers optional **Chat apps** (share sheet: WhatsApp, Messenger, Viber…) and **Text message** (SMS to the host). | If saving fails, the guest is asked to send it by chat or text instead |
 | **Directions** | Google Maps, Waze, and Apple Maps (iPhone only) | n/a |
 | **Calendar** | iPhone: Apple Calendar first (`/briella-birthday.ics`, with reminders 1 day and 2 hours before). Android: Google Calendar first. | The other option sits right below |
-| **Share** | Native share sheet with the link | Copies the link and shows a confirmation |
 | **Save invitation image** | Downloads a full-resolution JPG of the artwork | n/a |
 
 Link previews in Messenger, Viber and iMessage show `assets/og.jpg`. The server makes those URLs absolute for whatever domain you deploy to.
@@ -92,7 +91,7 @@ briellainvitation/
     ├── styles.css
     ├── app.js                ← CONFIG lives here
     └── assets/
-        ├── cover.webp/.jpg           page 1: the "TAP TO OPEN" cover (first screen)
+        ├── cover.webp/.jpg           page 1: static cover (first screen; "Tap to open" button is drawn by the page)
         ├── invite-details.webp/.jpg  page 2: date, time, venue (shown after the tap)
         ├── cover-ext.webp/.jpg       cover with painted sky/ground continuation (full-screen fill)
         ├── details-tail.webp/.jpg    street continuation below page 2 (behind the buttons)
