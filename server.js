@@ -317,13 +317,6 @@ function guestListPage(rows, key, flash) {
   .tag { display: inline-block; margin-left: 4px; padding: 2px 7px; border-radius: 99px; background: #eef1f8; color: #5a6a92; font-size: 12px; font-weight: 700; vertical-align: middle; }
   .tag-m { background: #e7f0ff; color: #2a5bd7; }
   .tag-d { background: #fff4d6; color: #8a6400; }
-  details.add { background: #fff; border-radius: 14px; box-shadow: 0 1px 3px rgba(11,31,84,.08); margin-bottom: 14px; }
-  details.add summary { padding: 14px 16px; font-weight: 800; cursor: pointer; }
-  .addf { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 16px 16px; }
-  .addf label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; font-weight: 700; }
-  .addf .full { grid-column: 1 / -1; }
-  .addf input, .addf select { padding: 10px; border: 1.5px solid #d5dbea; border-radius: 10px; font: inherit; font-size: 16px; }
-  .addf button { grid-column: 1 / -1; padding: 12px; border: 0; border-radius: 12px; background: #0b1f54; color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
   @media (max-width: 560px) { .stats { grid-template-columns: repeat(2, 1fr); } }
   /* Phones: each guest becomes a card so Delete is always on screen. */
   @media (max-width: 640px) {
@@ -358,17 +351,6 @@ function guestListPage(rows, key, flash) {
     <a class="btn" href="/rsvps.csv${q}">Download spreadsheet (CSV)</a>
     <a class="btn alt" href="/rsvps${q}">Refresh</a>
   </div>
-  <details class="add">
-    <summary>➕ Add a guest (RSVP received by text or chat)</summary>
-    <form class="addf" method="post" action="/rsvps/add${q}">
-      <label class="full">Name<input name="name" required maxlength="80" autocomplete="off"></label>
-      <label>Coming?<select name="attending"><option value="yes">Yes</option><option value="no">No</option></select></label>
-      <label>Kids<input name="kids" type="number" min="0" max="20" value="1" inputmode="numeric"></label>
-      <label>Adults<input name="adults" type="number" min="0" max="20" value="1" inputmode="numeric"></label>
-      <label>Message<input name="note" maxlength="500"></label>
-      <button type="submit">Add to guest list</button>
-    </form>
-  </details>
   <div class="wrap"><table>
     <thead><tr><th>Name</th><th>Coming</th><th>Kids</th><th>Adults</th><th>Message</th><th>Sent</th><th></th></tr></thead>
     <tbody>${body}</tbody>
@@ -427,27 +409,16 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (pathname === "/rsvps/delete" || pathname === "/rsvps/add") {
+  if (pathname === "/rsvps/delete") {
     if (req.method !== "POST") { res.writeHead(405, { Allow: "POST" }); return res.end(); }
     if (!isAdmin(url)) { res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" }); return res.end("Wrong or missing key."); }
     readBody(req).then((raw) => {
       const form = Object.fromEntries(new URLSearchParams(raw));
       let msg = "";
-      if (pathname === "/rsvps/add") {
-        const rsvp = cleanRsvp(form, "manual");
-        if (rsvp) {
-          appendRsvp(rsvp);
-          console.log(`RSVP added by host: ${rsvp.name} id=${rsvp.id}`);
-          msg = `Added ${rsvp.name} to the guest list.`;
-        } else {
-          msg = "Please enter a name to add a guest.";
-        }
-      } else {
-        const name = form.id ? deleteRow(form.id) : null;
-        if (name) {
-          console.log(`Deleted RSVP: ${name} id=${form.id}`);
-          msg = `Deleted ${name} from the guest list.`;
-        }
+      const name = form.id ? deleteRow(form.id) : null;
+      if (name) {
+        console.log(`Deleted RSVP: ${name} id=${form.id}`);
+        msg = `Deleted ${name} from the guest list.`;
       }
       const back = new URLSearchParams();
       if (url.searchParams.get("key")) back.set("key", url.searchParams.get("key"));

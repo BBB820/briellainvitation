@@ -60,13 +60,13 @@ It shows totals (families, kids, adults, can't make it), every response, and a
 Every RSVP is listed; nothing is merged or hidden. The only rows combined are one
 person changing their own answer (same phone and same name), shown once and tagged
 "changed answer". Rows that share a name are flagged "same name as another" so you
-can spot real duplicates. Use "➕ Add a guest" to record RSVPs that came by text.
+can spot real duplicates.
 
 Delivery never drops an RSVP: each submission has an id (retries can't
 double-save), it is retried automatically, kept on the guest's phone until the
 server confirms it, and resent the next time they open the invitation. If it still
 can't be saved, the text/chat message the guest sends is marked
-"⚠️ Not saved online yet" so you know to add it.
+"⚠️ Not saved online yet" so you know to ask them to try the RSVP again.
 
 One-time Railway setup:
 

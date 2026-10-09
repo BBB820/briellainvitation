@@ -558,7 +558,7 @@
     }
     if (note) lines.push(`Message: ${note}`);
     lines.push("", `📅 ${CONFIG.dateLabel}`, `📍 ${CONFIG.venue}`);
-    if (rsvpNotSaved) lines.push("", "⚠️ Not saved online yet. Please add me to the guest list.");
+    if (rsvpNotSaved) lines.push("", "⚠️ My RSVP did not save online yet (it will retry automatically).");
     return lines.join("\n");
   }
 
