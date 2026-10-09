@@ -541,6 +541,8 @@
     return form.elements.attending.value === "yes";
   }
 
+  let rsvpNotSaved = false; // true when the RSVP is still waiting to reach the server
+
   function rsvpMessage() {
     const name = nameInput.value.trim() || "[your name]";
     const note = $("#rsvp-note").value.trim();
@@ -556,6 +558,7 @@
     }
     if (note) lines.push(`Message: ${note}`);
     lines.push("", `📅 ${CONFIG.dateLabel}`, `📍 ${CONFIG.venue}`);
+    if (rsvpNotSaved) lines.push("", "⚠️ Not saved online yet. Please add me to the guest list.");
     return lines.join("\n");
   }
 
@@ -630,31 +633,102 @@
     $("#dlg-rsvp").scrollTop = 0;
   }
 
+  // ---- Delivery that never drops an RSVP ----
+  // Each submission gets an id; the server ignores repeats of the same id, so
+  // retrying is always safe. Failed submissions wait on the phone and are
+  // resent automatically the next time the invitation is opened.
+  const PENDING_KEY = "briella-rsvp-pending";
+
+  function randomId() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  }
+  function deviceId() {
+    try {
+      let id = localStorage.getItem("briella-device");
+      if (!id) { id = randomId(); localStorage.setItem("briella-device", id); }
+      return id;
+    } catch { return ""; }
+  }
+  function readPending() {
+    try { return JSON.parse(localStorage.getItem(PENDING_KEY) || "[]"); } catch { return []; }
+  }
+  function writePending(list) {
+    try { localStorage.setItem(PENDING_KEY, JSON.stringify(list)); } catch { /* storage blocked */ }
+  }
+
+  async function postOnce(payload, timeoutMs) {
+    const ctrl = "AbortController" in window ? new AbortController() : null;
+    const timer = ctrl && setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetch("/api/rsvp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: ctrl ? ctrl.signal : undefined,
+        keepalive: true,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) return "ok";
+      if (res.status === 400) return "invalid";
+      return "retry";
+    } catch {
+      return "retry";
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  async function deliver(payload) {
+    const waits = [0, 1000, 2500, 5000];
+    for (const w of waits) {
+      if (w) await wait(w);
+      const r = await postOnce(payload, 10000);
+      if (r !== "retry") return r;
+    }
+    return "retry";
+  }
+
+  async function flushPending() {
+    const list = readPending();
+    if (!list.length) return;
+    const left = [];
+    for (const p of list) {
+      const r = await deliver(p);
+      if (r === "retry") left.push(p);
+    }
+    writePending(left);
+  }
+  flushPending();
+  window.addEventListener("online", flushPending);
+
   async function saveRsvp() {
-    const res = await fetch("/api/rsvp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: nameInput.value.trim(),
-        attending: attending() ? "yes" : "no",
-        kids: counts.kids,
-        adults: counts.adults,
-        note: $("#rsvp-note").value.trim(),
-      }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    const payload = {
+      rid: randomId(),
+      did: deviceId(),
+      name: nameInput.value.trim(),
+      attending: attending() ? "yes" : "no",
+      kids: counts.kids,
+      adults: counts.adults,
+      note: $("#rsvp-note").value.trim(),
+    };
+    // Keep a copy on the phone until the server confirms it.
+    writePending([...readPending(), payload]);
+    const r = await deliver(payload);
+    if (r === "ok" || r === "invalid") writePending(readPending().filter((p) => p.rid !== payload.rid));
+    if (r !== "ok") throw new Error(r);
   }
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!validName()) return;
     submitBtn.disabled = true;
-    submitBtn.textContent = "Sending…";
+    submitBtn.textContent = "Sending… please wait";
     submitErr.hidden = true;
     const first = nameInput.value.trim().split(/\s+/)[0];
     try {
       await saveRsvp();
+      rsvpNotSaved = false;
       Sfx.success();
       $("#rsvp-done-title").textContent = attending() ? `Got it, ${first}! See you there!` : `Thanks for letting us know, ${first}.`;
       $("#rsvp-done-sub").textContent = attending()
@@ -663,10 +737,13 @@
       $("#rsvp-extra-label").innerHTML = "Want to message them too? <em>(optional)</em>";
       $("#rsvp-done-emoji").textContent = attending() ? "🎉" : "💙";
     } catch (err) {
-      // Saving failed: the chat/text options become the way to RSVP.
+      // Still not saved after several tries: it stays on this phone and is
+      // resent automatically next visit. Meanwhile ask for a text, marked so
+      // the host knows to add it.
+      rsvpNotSaved = true;
       $("#rsvp-done-title").textContent = "Almost there!";
       $("#rsvp-done-emoji").textContent = "📨";
-      $("#rsvp-done-sub").textContent = "We couldn't save your RSVP online. Please send it by chat or text below.";
+      $("#rsvp-done-sub").textContent = "Your connection dropped, so we couldn't save your RSVP yet. We'll retry automatically. To be safe, please also send it by chat or text below.";
       $("#rsvp-extra-label").textContent = "Send your RSVP by…";
     } finally {
       submitBtn.disabled = false;
